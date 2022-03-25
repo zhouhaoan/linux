@@ -406,6 +406,61 @@ set_register:
 EXPORT_SYMBOL_GPL(native_write_cr4);
 #endif
 
+unsigned long __no_profile native2_read_cr4(void)
+{
+	unsigned long val;
+
+	/* CR4 always exists on x86_64. */
+	asm volatile("mov %%cr4,%0\n\t" : "=r" (val) : __FORCE_ORDER);
+	return val;
+}
+
+EXPORT_SYMBOL_GPL(native2_read_cr4);
+
+void rkvm_vmxon(u64 addr)
+{
+	unsigned long cr4;
+	cr4 = native_read_cr4();
+	cr4 |= X86_CR4_VMXE;
+	native_write_cr4(cr4);
+	asm volatile ("vmxon %0" : : "m"(addr));
+}
+
+EXPORT_SYMBOL(rkvm_vmxon);
+
+void rkvm_vmxoff()
+{
+	unsigned long cr4;
+	asm volatile ("vmxoff");
+	cr4 = native_read_cr4();
+	cr4 &= ~X86_CR4_VMXE;
+	native_write_cr4(cr4);
+}
+
+EXPORT_SYMBOL(rkvm_vmxoff);
+
+
+u64 rkvm_rflags_read()
+{
+	return native_save_fl();
+}
+
+EXPORT_SYMBOL(rkvm_rflags_read);
+
+unsigned long long rkvm_read_msr(unsigned int msr)
+{
+	return native_read_msr(msr);
+}
+
+EXPORT_SYMBOL(rkvm_read_msr);
+
+void rkvm_write_msr(unsigned int msr, u32 low, u32 high)
+{
+	native_write_msr(msr, low, high);
+}
+
+EXPORT_SYMBOL(rkvm_write_msr);
+
 void cr4_update_irqsoff(unsigned long set, unsigned long clear)
 {
 	unsigned long newval, cr4 = this_cpu_read(cpu_tlbstate.cr4);
