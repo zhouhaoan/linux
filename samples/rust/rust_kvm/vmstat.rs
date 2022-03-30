@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-//use kernel::prelude::*;
+use kernel::prelude::*;
 
 #[allow(dead_code)]
 pub(crate) struct HostState {
@@ -78,5 +78,37 @@ impl GuestState {
     pub(crate) fn set_edx_eax(&mut self, value: u64) {
         self.rax = BITS_SHIFT!(value, 31, 0);
         self.rdx = BITS_SHIFT!(value, 63, 32);
+    }
+}
+
+pub(crate) struct VmxState {
+    pub(crate) host_state: HostState,
+    pub(crate) guest_state: GuestState,
+}
+
+impl VmxState {
+    pub(crate) fn new(&self) -> Result<Self> {
+        Ok(Self {
+            host_state: HostState { rsp: 0, xcr0: 0 },
+            guest_state: GuestState {
+                rax: 0,
+                rcx: 0,
+                rdx: 0,
+                rbx: 0,
+                rbp: 0,
+                rsi: 0,
+                rdi: 0,
+                r8: 0,
+                r9: 0,
+                r10: 0,
+                r11: 0,
+                r12: 0,
+                r13: 0,
+                r14: 0,
+                r15: 0,
+                cr2: 0,
+                xcr0: 0,
+            },
+        })
     }
 }
