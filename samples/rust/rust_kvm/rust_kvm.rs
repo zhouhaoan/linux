@@ -11,6 +11,8 @@ use kernel::{
     sync::{CondVar, Mutex, Ref, RefBorrow, UniqueRef},
 };
 
+mod vmcs;
+use crate::vmcs::*;
 module! {
     type: RustMiscdev,
     name: b"rust_kvm",
@@ -24,6 +26,7 @@ struct SharedStateInner {
 }
 
 struct RkvmState {
+    vmcsconf: VmcsConfig,
     state_changed: CondVar,
     inner: Mutex<SharedStateInner>,
 }
@@ -40,8 +43,11 @@ struct VmxInfo {
 impl RkvmState {
     fn try_new() -> Result<Ref<Self>> {
         pr_info!("RkvmState try_new \n");
+        let mut vmcsconf = VmcsConfig::new()?;
+        vmcsconf.setup_config();
         let mut state = Pin::from(UniqueRef::try_new(Self {
             // SAFETY: `condvar_init!` is called below
+            vmcsconf: vmcsconf,
             state_changed: unsafe { CondVar::new() },
             // SAFETY: `mutex_init!` is called below.
             inner: unsafe { Mutex::new(SharedStateInner { token_count: 0 }) },
