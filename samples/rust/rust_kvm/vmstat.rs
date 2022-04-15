@@ -3,9 +3,18 @@ use kernel::prelude::*;
 
 #[allow(dead_code)]
 pub(crate) struct HostState {
+    pub(crate) cr3: u64, /* May not match real cr3 */
+    pub(crate) cr4: u64, /* May not match real cr4 */
+    pub(crate) gs_base: u64,
+    pub(crate) fs_base: u64,
     // Host stack pointer.
     pub(crate) rsp: u64,
 
+    pub(crate) fs_sel: u16,
+    pub(crate) gs_sel: u16,
+    pub(crate) ldt_sel: u16,
+    pub(crate) ds_sel: u16,
+    pub(crate) es_sel: u16,
     // Extended control registers.
     pub(crate) xcr0: u64,
 }
@@ -89,7 +98,19 @@ pub(crate) struct VmxState {
 impl VmxState {
     pub(crate) fn new(&self) -> Result<Self> {
         Ok(Self {
-            host_state: HostState { rsp: 0, xcr0: 0 },
+            host_state: HostState {
+                cr3: 0,
+                cr4: 0,
+                fs_base: 0,
+                gs_base: 0,
+                rsp: 0,
+                fs_sel: 0,
+                gs_sel: 0,
+                ldt_sel: 0,
+                ds_sel: 0,
+                es_sel: 0,
+                xcr0: 0,
+            },
             guest_state: GuestState {
                 rax: 0,
                 rcx: 0,
