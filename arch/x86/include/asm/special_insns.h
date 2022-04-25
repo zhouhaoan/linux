@@ -81,6 +81,10 @@ void rkvm_vmxoff(void);
 unsigned long long rkvm_read_msr(unsigned int msr);
 void rkvm_write_msr(unsigned int msr, u32 low, u32 high);
 u64 rkvm_rflags_read(void);
+void rkvm_vmcs_writel(unsigned long field, unsigned long value);
+unsigned long rkvm_vmcs_readl(unsigned long field);
+void rkvm_irq_disable(void);
+void rkvm_irq_enable(void);
 
 #ifdef CONFIG_X86_INTEL_MEMORY_PROTECTION_KEYS
 static inline u32 rdpkru(void)
