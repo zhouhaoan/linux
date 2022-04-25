@@ -17,6 +17,13 @@ pub(crate) struct PinbasedControls {
     pub(crate) value: u32,
 }
 
+impl PinbasedControls {
+    pub(crate) const EXTERNAL_INTERRUPT_EXITING: u32 = 0;
+    pub(crate) const NMI_EXITING: u32 = 3;
+    pub(crate) const VIRTUAL_NMIS: u32 = 5;
+    pub(crate) const VMX_PREEMPTION_TIMER: u32 = 6;
+    pub(crate) const POSTED_INTERRUPTS: u32 = 7;
+}
 /// Primary processor-based VM-execution controls.
 ///
 /// A set of bitmask flags useful when setting up [`PRIMARY_PROCBASED_EXEC_CONTROLS`] VMCS field.
@@ -75,6 +82,7 @@ impl ExitControls {
     pub(crate) const ACK_INTERRUPT_ON_EXIT: u32 = 1 << 15;
 }
 
+
 #[derive(Copy, Clone)]
 pub(crate) struct VmcsConfig {
     pub(crate) size: u32,
@@ -110,7 +118,9 @@ impl VmcsConfig {
         let mut _vmexit_control: u32 = 0;
         let mut _vmentry_control: u32 = 0;
 
-        _cpu_based_exec_control = PrimaryControls::HLT_EXITING
+        _pin_based_exec_control = PinbasedControls::EXTERNAL_INTERRUPT_EXITING
+            | PinbasedControls::NMI_EXITING;
+	_cpu_based_exec_control = PrimaryControls::HLT_EXITING
             | PrimaryControls::MWAIT_EXITING
             | PrimaryControls::MONITOR_EXITING
             | PrimaryControls::SECONDARY_CONTROLS;
@@ -138,4 +148,5 @@ impl VmcsConfig {
 
         return 0;
     }
+    
 } //impl
