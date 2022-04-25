@@ -18,7 +18,7 @@ pub mod virt {
     ///
     /// `vma` is always non-null and valid.
     pub struct Area {
-        vma: *mut bindings::vm_area_struct,
+        pub vma: *mut bindings::vm_area_struct,
     }
 
     impl Area {

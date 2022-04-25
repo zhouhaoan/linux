@@ -19,7 +19,7 @@ use core::{marker::PhantomData, ptr};
 ///
 /// The pointer `Pages::pages` is valid and points to 2^ORDER pages.
 pub struct Pages<const ORDER: u32> {
-    pub(crate) pages: *mut bindings::page,
+    pub pages: *mut bindings::page,
 }
 
 impl<const ORDER: u32> Pages<ORDER> {
