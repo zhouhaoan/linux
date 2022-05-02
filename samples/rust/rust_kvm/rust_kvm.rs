@@ -10,8 +10,9 @@ use kernel::{
     miscdev,
     sync::{CondVar, Mutex, Ref, RefBorrow, UniqueRef},
 };
-
+mod guest;
 mod vmcs;
+use crate::guest::Guest;
 use crate::vmcs::*;
 module! {
     type: RustMiscdev,
@@ -105,6 +106,56 @@ impl Drop for RustMiscdev {
     }
 }
 
+fn rkvm_set_vmxon(state: &RkvmState) -> Result<u32> {
+    // allocate page for vmxon
+    let page = Pages::<0>::new();
+
+    let page = match page {
+        Ok(page) => page,
+        Err(err) => return Err(/*Error::ENOMEM*/ err),
+    };
+
+    let vmxinfo = VmxInfo {
+        revision_id: state.vmcsconf.revision_id,
+        region_size: state.vmcsconf.size as u16,
+        write_back: false,
+        io_exit_info: false,
+        vmx_controls: true,
+    };
+
+    let mut kva: u64 = 0;
+    unsafe {
+        kva = bindings::rkvm_page_address(page.pages);
+        let len = core::mem::size_of::<VmxInfo>();
+        let p = &vmxinfo;
+        pr_info!(
+            "Rust kvm:kva={:x}, size={:?},revision={:?} \n",
+            kva,
+            state.vmcsconf.size,
+            vmxinfo.revision_id
+        );
+        let ptr = core::slice::from_raw_parts((p as *const VmxInfo) as *const u8, len);
+
+        page.write(ptr.as_ptr(), 0, len);
+    }
+
+    let mut vmxe: u64 = 0;
+    unsafe {
+        vmxe = bindings::native2_read_cr4() & bit(x86reg::Cr4::CR4_ENABLE_VMX);
+    }
+    pr_info!("Rust kvm :vmxe {:}\n", vmxe);
+    if vmxe > 0 {
+        pr_info!("Rust kvm: vmx has been enabled\n");
+        return Err(Error::ENOENT);
+    }
+    unsafe {
+        let pa = bindings::rkvm_phy_address(kva);
+        pr_info!(" pa = {:x}\n", pa);
+        bindings::rkvm_vmxon(pa);
+    }
+    Ok(0)
+}
+
 const IOCTL_KVM_CREATE_VM: u32 = 0x00AE0100;
 const IOCTL_KVM_CREATE_VCPU: u32 = 0x00AE4100;
 
@@ -114,6 +165,19 @@ impl IoctlHandler for RkvmState {
     fn pure(_shared: &RkvmState, _: &File, cmd: u32, _arg: usize) -> Result<i32> {
         match cmd {
             IOCTL_KVM_CREATE_VM => {
+                if let Err(error) = rkvm_set_vmxon(_shared) {
+                    pr_err!("Rkvm: IOCTL_KVM_CREATE_VM failed\n");
+                    return Err(error);
+                }
+                let guest = Guest::new();
+
+                let guest = match guest {
+                    Err(error) => return Err(error),
+                    Ok(guest) => guest,
+                };
+                unsafe {
+                    GUEST = Some(guest);
+                }
                 pr_info!("Rust kvm: IOCTL_KVM_CREATE_VM\n");
                 Ok(0)
             }
