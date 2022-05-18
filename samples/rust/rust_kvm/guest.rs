@@ -25,9 +25,8 @@ impl Guest {
     pub(crate) fn new() -> Result<Ref<Mutex<Self>>> {
         let mm_ = Task::current().mm();
 
-        let g;
-        unsafe {
-            g = Ref::try_new(Mutex::new(Self {
+        let g = unsafe {
+            Ref::try_new(Mutex::new(Self {
                 mm: mm_,
                 memslot: RkvmMemorySlot {
                     base_gfn: 0,
@@ -36,8 +35,8 @@ impl Guest {
                     as_id: 0,
                 },
                 nr_slot_pages: 0,
-            }))?;
-        }
+            }))?
+        };
         Ok(g)
     }
     pub(crate) fn mmu_init(&self) {
