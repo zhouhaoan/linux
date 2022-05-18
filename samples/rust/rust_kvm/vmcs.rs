@@ -4,7 +4,7 @@
 //! See Intel SDM, Volume 3D, Appendix B.
 use kernel::bindings;
 use kernel::prelude::*;
-#[feature(global_asm)]
+use core::arch::global_asm;
 
 /// VM-execution, VM-exit, and VM-entry control fields
 
@@ -309,7 +309,7 @@ pub(crate) fn vmcs_read32(field: VmcsField) -> u32 {
     let ret = unsafe {
         bindings::rkvm_vmcs_readl(field as u64)
     };
-    ret as u32;
+    ret as u32
 }
 
 pub(crate) fn vmcs_read64(field: VmcsField) -> u64 {
