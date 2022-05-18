@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0
 use kernel::bindings;
 use kernel::pages::Pages;
-#[feature(global_asm)]
 use kernel::prelude::*;
 use kernel::sync::{Mutex, Ref, UniqueRef};
 use kernel::Result;
+use core::arch::global_asm;
 //use alloc::alloc::{AllocError};
 use super::Guest;
 use crate::exit::*;

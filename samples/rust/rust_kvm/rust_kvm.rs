@@ -5,12 +5,15 @@
 #[allow(dead_code)]
 use kernel::prelude::*;
 use kernel::{
-    file::File
+    file::File,
     file_operations::{FileOperations, IoctlCommand, IoctlHandler},
     miscdev, pages::Pages, bit, bindings,
     sync::{CondVar, Mutex, Ref, RefBorrow, UniqueRef},
     user_ptr::UserSlicePtrReader,
     Result,
+    mm::virt::Area,
+    io_buffer::IoBufferReader,
+    c_types::c_void,
 };
 
 mod exit;
@@ -19,6 +22,7 @@ mod mmu;
 mod vcpu;
 mod vmcs;
 mod x86reg;
+mod vmstat;
 use crate::x86reg::Cr4;
 use crate::guest::Guest;
 use crate::vcpu::Vcpu;
@@ -112,7 +116,7 @@ impl KernelModule for RustMiscdev {
         /* vmxon percpu*/
 
         Ok(RustMiscdev {
-            _dev: miscdev::Registration::new_pinned(name, state)?,
+            _dev: miscdev::Registration::new_pinned(fmt!("{name}"), state)?,
         })
     }
 }
@@ -289,8 +293,8 @@ impl IoctlHandler for RkvmState {
                     uaddr_.userspace_addr,
                     uaddr_.memory_size >> 12,
                     uaddr_.guest_phys_addr,
-                );
-                ret
+                )?;
+               Ok(ret.try_into().unwrap())
             }
             _ => Err(Error::EINVAL),
         }
