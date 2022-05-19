@@ -7,7 +7,7 @@ use kernel::prelude::*;
 use kernel::{bindings, bit, c_types::c_void, pages::Pages, sync::Ref, Error, Result, PAGE_SIZE};
 
 #[repr(u32)]
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 #[allow(dead_code)]
 #[allow(non_camel_case_types)]
 pub(crate) enum ExitReason {

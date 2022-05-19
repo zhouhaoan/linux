@@ -35,7 +35,7 @@ pub(crate) struct Vcpu {
     // DefMut trait for UniqueRef, List use it
     pub(crate) mmu: UniqueRef<RkvmMmu>,
     pub(crate) va_run: u64,
-    pub(crate) run: Ref<RkvmRun>,
+    pub(crate) run: *mut RkvmRun,
     pub(crate) vcpu_id: u32,
     pub(crate) launched: bool,
 }
@@ -54,9 +54,7 @@ impl Vcpu {
         };
         let mut va = unsafe { bindings::rkvm_page_address(run.pages) };
         let mut mmu = RkvmMmu::new()?;
-        let ptr = unsafe {
-            NonNull::new(va as *mut RkvmRun).unwrap().as_ptr()
-        };
+        let ptr =  NonNull::new(va as *mut RkvmRun).unwrap().as_ptr();
         mmu.init_mmu_root();
         let vcpu = unsafe {
             Ref::try_new(Mutex::new(Self {
@@ -64,7 +62,7 @@ impl Vcpu {
                 vmx_state: state,
                 mmu: mmu,
                 va_run: va,
-                run: Ref::from_raw(ptr),
+                run: ptr,
                 vcpu_id: 0,
                 launched: false,
             }))?
@@ -82,7 +80,8 @@ impl Vcpu {
 
     pub(crate) fn vcpu_exit_handler(&mut self) -> Result {
         let exit_info = ExitInfo::from_vmcs();
-        let res = match exit_info.exit_reason {
+        unsafe { (*self.run).exit_reason = exit_info.exit_reason as u32;}
+        match exit_info.exit_reason {
             ExitReason::HLT => handle_hlt(&exit_info, self),
             //ExitReason::IO_INSTRUCTION => handle_io_instruction(&exit_info),
             ExitReason::EPT_VIOLATION => handle_ept_violation(&exit_info, self),
