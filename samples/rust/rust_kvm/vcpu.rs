@@ -11,7 +11,9 @@ use crate::exit::*;
 use crate::mmu::*;
 use crate::vmcs::*;
 use crate::vmstat::*;
+use core::ptr::NonNull;
 
+#[repr(C)]
 #[allow(dead_code)]
 pub(crate) struct RkvmRun {
     /* in */
@@ -32,7 +34,8 @@ pub(crate) struct Vcpu {
     pub(crate) vmx_state: Box<VmxState>,
     // DefMut trait for UniqueRef, List use it
     pub(crate) mmu: UniqueRef<RkvmMmu>,
-    pub(crate) run: u64,
+    pub(crate) va_run: u64,
+    pub(crate) run: Ref<RkvmRun>,
     pub(crate) vcpu_id: u32,
     pub(crate) launched: bool,
 }
@@ -51,13 +54,17 @@ impl Vcpu {
         };
         let mut va = unsafe { bindings::rkvm_page_address(run.pages) };
         let mut mmu = RkvmMmu::new()?;
+        let ptr = unsafe {
+            NonNull::new(va as *mut RkvmRun).unwrap().as_ptr()
+        };
         mmu.init_mmu_root();
         let vcpu = unsafe {
             Ref::try_new(Mutex::new(Self {
                 guest: guest,
                 vmx_state: state,
                 mmu: mmu,
-                run: va,
+                va_run: va,
+                run: Ref::from_raw(ptr),
                 vcpu_id: 0,
                 launched: false,
             }))?
@@ -70,7 +77,7 @@ impl Vcpu {
     }
 
     pub(crate) fn get_run(&self) -> u64 {
-        self.run
+        self.va_run
     }
 
     pub(crate) fn vcpu_exit_handler(&mut self) -> Result {
