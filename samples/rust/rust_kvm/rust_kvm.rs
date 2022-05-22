@@ -283,7 +283,7 @@ impl IoctlHandler for RkvmState {
                     memory_size: 0,
                     userspace_addr: 0,
                 };
-                let len = reader.len();
+                let len = core::mem::size_of::<RkvmUserspaceMemoryRegion>();
                 unsafe {
                     let mut ptr = core::slice::from_raw_parts_mut(
                         (&mut uaddr_ as *mut RkvmUserspaceMemoryRegion) as *mut u8,
