@@ -78,7 +78,7 @@ impl RkvmMmu {
     }
 
     pub(crate) fn init_mmu_root(&mut self) -> Result {
-        ///TODO: pgd setting
+        // TODO: pgd setting
         let mut eptp: u64 = VmxEptpFlag::VMX_EPTP_MT_WB as u64 | VmxEptpFlag::VMX_EPTP_PWL_4 as u64;
         eptp |= self.root_hpa;
         vmcs_write64(VmcsField::EPT_POINTER, eptp);
