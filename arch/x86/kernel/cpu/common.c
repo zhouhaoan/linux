@@ -414,7 +414,6 @@ unsigned long __no_profile native2_read_cr4(void)
 	asm volatile("mov %%cr4,%0\n\t" : "=r" (val) : __FORCE_ORDER);
 	return val;
 }
-
 EXPORT_SYMBOL_GPL(native2_read_cr4);
 
 void rkvm_vmxon(u64 addr)
@@ -425,7 +424,6 @@ void rkvm_vmxon(u64 addr)
 	native_write_cr4(cr4);
 	asm volatile ("vmxon %0" : : "m"(addr));
 }
-
 EXPORT_SYMBOL(rkvm_vmxon);
 
 void rkvm_vmxoff()
@@ -436,29 +434,24 @@ void rkvm_vmxoff()
 	cr4 &= ~X86_CR4_VMXE;
 	native_write_cr4(cr4);
 }
-
 EXPORT_SYMBOL(rkvm_vmxoff);
-
 
 u64 rkvm_rflags_read()
 {
 	return native_save_fl();
 }
-
 EXPORT_SYMBOL(rkvm_rflags_read);
 
 unsigned long long rkvm_read_msr(unsigned int msr)
 {
 	return native_read_msr(msr);
 }
-
 EXPORT_SYMBOL(rkvm_read_msr);
 
 void rkvm_write_msr(unsigned int msr, u32 low, u32 high)
 {
 	native_write_msr(msr, low, high);
 }
-
 EXPORT_SYMBOL(rkvm_write_msr);
 
 void rkvm_vmcs_writel(unsigned long field, unsigned long value)
@@ -475,7 +468,6 @@ error:
 fault:
 	BUG();
 }
-
 EXPORT_SYMBOL(rkvm_vmcs_writel);
 
 unsigned long  rkvm_vmcs_readl(unsigned long field)
@@ -500,21 +492,68 @@ do_exception:
 	BUG();
 	return 0;
 }
-
 EXPORT_SYMBOL(rkvm_vmcs_readl);
+
+void rkvm_vmcs_load(unsigned long vmcs_phy)
+{
+	asm_volatile_goto("1: vmptrld %0\n\t"
+			  ".byte 0x2e\n\t" /* branch not taken hint */
+			  "jna %l[error]\n\t"
+			  _ASM_EXTABLE(1b, %l[fault])
+			  : : "m"(vmcs_phy) : "cc" : error, fault);
+	return;
+error:
+	WARN_ONCE(1, "rkvm: vmptrld failed: vmcs_phy=%lx \n", vmcs_phy);
+	return;
+fault:
+	BUG();
+}
+EXPORT_SYMBOL(rkvm_vmcs_load);
+
+void rkvm_invept(unsigned long ext, unsigned long  eptp, unsigned long gpa)
+{
+	struct {
+		u64 eptp, gpa;
+	} operand = {eptp, gpa};
+	asm_volatile_goto("1: invept %1, %0\n\t"
+			  ".byte 0x2e\n\t"
+			  "jna %l[error]\n\t"
+			  _ASM_EXTABLE(1b, %l[fault])
+			  : : "r"(ext), "m"(operand) : "cc" : error, fault);
+error:
+	WARN_ONCE(1, "rkvm: invept failed: eptp=ox%lx, gpa=0x%lx \n", eptp, gpa);
+	return;
+fault:
+	BUG();
+}
+EXPORT_SYMBOL(rkvm_invept);
+
+void rkvm_vmcs_clear(unsigned long vmcs_phy)
+{
+	asm_volatile_goto("1: vmclear %0\n\t"
+			  ".byte 0x2e\n\t" /* branch not taken hint */
+			  "jna %l[error]\n\t"
+			  _ASM_EXTABLE(1b, %l[fault])
+			  : : "m"(vmcs_phy) : "cc" : error, fault);
+	return;
+error:
+	WARN_ONCE(1, "rkvm: vmclear failed: vmcs_phy=%lx \n", vmcs_phy);
+	return;
+fault:
+	BUG();
+}
+EXPORT_SYMBOL(rkvm_vmcs_clear);
 
 void rkvm_irq_disable(void)
 {
        asm volatile("cli": : :"memory");
 }
-
 EXPORT_SYMBOL(rkvm_irq_disable);
 
 void rkvm_irq_enable(void)
 {
         asm volatile("sti": : :"memory");
 }
-
 EXPORT_SYMBOL(rkvm_irq_enable);
 
 void cr4_update_irqsoff(unsigned long set, unsigned long clear)

@@ -1715,6 +1715,11 @@ EXPORT_SYMBOL_GPL(zap_vma_ptes);
 
 
 /*rkvm */
+unsigned long rkvm_page_to_pfn(struct page *page)
+{
+	return page_to_pfn(page);
+}
+EXPORT_SYMBOL_GPL(rkvm_page_to_pfn);
 
 unsigned long rkvm_page_address(struct page * page)
 {
