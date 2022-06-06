@@ -1721,6 +1721,24 @@ unsigned long rkvm_page_to_pfn(struct page *page)
 }
 EXPORT_SYMBOL_GPL(rkvm_page_to_pfn);
 
+unsigned long rkvm_get_current_gdt_ro(void)
+{
+        int cpu = get_cpu();
+        unsigned long ret = (unsigned long)get_cpu_gdt_ro(smp_processor_id());
+        put_cpu();
+        return ret;
+}
+EXPORT_SYMBOL_GPL(rkvm_get_current_gdt_ro);
+
+unsigned long rkvm_get_current_tss_ro(void)
+{
+       int cpu = get_cpu();
+       unsigned long ret =  &get_cpu_entry_area(smp_processor_id())->tss.x86_tss;
+       put_cpu();
+       return ret;
+}
+EXPORT_SYMBOL_GPL(rkvm_get_current_tss_ro);
+
 unsigned long rkvm_page_address(struct page * page)
 {
 	return lowmem_page_address(page);

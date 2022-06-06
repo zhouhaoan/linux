@@ -416,6 +416,24 @@ unsigned long __no_profile native2_read_cr4(void)
 }
 EXPORT_SYMBOL_GPL(native2_read_cr4);
 
+unsigned long __no_profile native2_read_cr3(void)
+{
+   return __native_read_cr3();
+}
+EXPORT_SYMBOL_GPL(native2_read_cr3);
+
+unsigned long __no_profile native2_read_cr2(void)
+{
+   return native_read_cr2();
+}
+EXPORT_SYMBOL_GPL(native2_read_cr2);
+
+unsigned long __no_profile native2_read_cr0(void)
+{
+   return native_read_cr0();
+}
+EXPORT_SYMBOL_GPL(native2_read_cr0);
+
 void rkvm_vmxon(u64 addr)
 {
 	unsigned long cr4;
