@@ -4,6 +4,7 @@
 //! See Intel SDM, Volume 3D, Appendix B.
 use kernel::bindings;
 use kernel::prelude::*;
+use crate::x86reg::*;
 use core::arch::global_asm;
 
 /// VM-execution, VM-exit, and VM-entry control fields
@@ -341,7 +342,7 @@ impl VmcsConfig {
         Ok(config)
     }
 
-    pub(crate) fn setup_config(&mut self) -> u32 {
+    pub(crate) fn setup_config(&mut self) -> Result<u32> {
         let mut _pin_based_exec_control: u32 = 0;
         let mut _cpu_based_exec_control: u32 = 0;
         let mut _cpu_based_2nd_exec_control: u32 = 0;
@@ -349,65 +350,227 @@ impl VmcsConfig {
         let mut _vmentry_control: u32 = 0;
 
         _pin_based_exec_control =
-            PinbasedControls::EXTERNAL_INTERRUPT_EXITING | PinbasedControls::NMI_EXITING;
-        _cpu_based_exec_control = PrimaryControls::HLT_EXITING
-            | PrimaryControls::MWAIT_EXITING
-            | PrimaryControls::MONITOR_EXITING
-            | PrimaryControls::SECONDARY_CONTROLS;
-        _cpu_based_2nd_exec_control =
-            SecondaryControls::UNRESTRICTED_GUEST | SecondaryControls::ENABLE_EPT;
-        _vmexit_control = ExitControls::ACK_INTERRUPT_ON_EXIT
-            | ExitControls::HOST_ADDRESS_SPACE_SIZE
-            | ExitControls::SAVE_DEBUG_CONTROLS;
-        _vmentry_control = EntryControls::LOAD_DEBUG_CONTROLS;
+            PinbasedControls::EXTERNAL_INTERRUPT_EXITING
+            | PinbasedControls::NMI_EXITING;
 
-        let v = unsafe {
-            bindings::rkvm_read_msr(bindings::MSR_IA32_VMX_BASIC)
-        };
+        _cpu_based_exec_control = PrimaryControls::HLT_EXITING
+              | PrimaryControls::MOV_DR_EXITING
+              | PrimaryControls::UNCOND_IO_EXITING
+              | PrimaryControls::MWAIT_EXITING
+              | PrimaryControls::MONITOR_EXITING
+            | PrimaryControls::SECONDARY_CONTROLS;
+           // | PrimaryControls::CR3_STORE_EXITING
+            //| PrimaryControls::CR8_LOAD_EXITING
+            // | PrimaryControls::CR8_STORE_EXITING;
+
+        _cpu_based_2nd_exec_control =
+            SecondaryControls::UNRESTRICTED_GUEST
+            | SecondaryControls::ENABLE_EPT;
+            //| SecondaryControls::ENABLE_RDTSCP
+            //| SecondaryControls::ENABLE_VPID
+            //| SecondaryControls::ENABLE_INVPCID;
+    _vmexit_control = ExitControls::HOST_ADDRESS_SPACE_SIZE
+              //| ExitControls::SAVE_DEBUG_CONTROLS
+              | ExitControls::ACK_INTERRUPT_ON_EXIT
+              | ExitControls::SAVE_IA32_PAT
+              | ExitControls::LOAD_IA32_PAT
+              | ExitControls::SAVE_IA32_EFER
+              | ExitControls::LOAD_IA32_EFER;
+
+        _vmentry_control = //EntryControls::IA32E_MODE_GUEST
+                          EntryControls::LOAD_IA32_PAT
+                           | EntryControls::LOAD_IA32_EFER;
+
+        let v = unsafe { bindings::rkvm_read_msr(bindings::MSR_IA32_VMX_BASIC) };
         let low: u32 = v as u32;
         let high: u32 = (v >> 32) as u32;
+        if ((high >> 18) & 15) != 6 {
+             pr_info!(" vmcs access mem type is not WB, high={:x} \n", high);
+        }
         self.size = high & 0x1fff;
         self.basic_cap = high & !0x1fff;
         self.revision_id = low;
 
-        self.pin_based_exec_ctrl = _pin_based_exec_control;
-        self.cpu_based_exec_ctrl = _cpu_based_exec_control;
-        self.cpu_based_2nd_exec_ctrl = _cpu_based_2nd_exec_control;
-        self.vmexit_ctrl = _vmexit_control;
-        self.vmentry_ctrl = _vmentry_control;
+        let truev = read_msr(X86Msr::TRUE_PINBASED_CTLS);
+        let old = read_msr(X86Msr::PINBASED_CTLS);
+        self.pin_based_exec_ctrl = set_control(VmcsField::PIN_BASED_VM_EXEC_CONTROL,
+                                     truev, old,  _pin_based_exec_control, 0)?;
+        let truev = read_msr(X86Msr::TRUE_PROCBASED_CTLS);
+        let old = read_msr(X86Msr::PROCBASED_CTLS);
+        self.cpu_based_exec_ctrl =set_control(VmcsField::CPU_BASED_VM_EXEC_CONTROL,
+                                  truev, old, _cpu_based_exec_control, 0)?;
+        let truev = read_msr(X86Msr::PROCBASED_CTLS2);
+        self.cpu_based_2nd_exec_ctrl = set_control(VmcsField::SECONDARY_VM_EXEC_CONTROL,
+                                     truev, 0, _cpu_based_2nd_exec_control, 0)?;
+        let truev = read_msr(X86Msr::TRUE_EXIT_CTLS);
+        let old = read_msr(X86Msr::EXIT_CTLS);
+        self.vmexit_ctrl = set_control(VmcsField::VM_EXIT_CONTROLS,
+                                    truev, old, _vmexit_control, 0)?;
+        let truev = read_msr(X86Msr::TRUE_ENTRY_CTLS);
+        let old = read_msr(X86Msr::ENTRY_CTLS);
+        self.vmentry_ctrl = set_control(VmcsField::VM_ENTRY_CONTROLS,
+                                    truev, old, _vmentry_control, 0)?;
 
-        return 0;
+        pr_info!(" setup pin={:x},cpu={:x}, cpu2={:x},exit={:x}, entry={:x} \n",
+                    self.pin_based_exec_ctrl , self.cpu_based_exec_ctrl, self.cpu_based_2nd_exec_ctrl,
+                    self.vmexit_ctrl, self.vmentry_ctrl);
+        Ok(0)
     }
-
     pub(crate) fn set_host_constant_vmcs(&self) {
-        vmcs_write64(VmcsField::HOST_RIP, vmx_vmexit as u64);
-    }
+        let mut cr0 = unsafe { bindings::native2_read_cr0() };
+        cr0 &= !(Cr0::CR0_TS as u64);
+        let cr3 = unsafe { bindings::native2_read_cr3() };
+        let cr4 = unsafe { bindings::cr4_read_shadow() };
+        vmcs_write64(VmcsField::HOST_CR0, cr0);
+        vmcs_write64(VmcsField::HOST_CR3, cr3);
+        vmcs_write64(VmcsField::HOST_CR4, cr4);
+        vmcs_write16(VmcsField::HOST_CS_SELECTOR, 16);
+        vmcs_write16(VmcsField::HOST_DS_SELECTOR, 0);
+        vmcs_write16(VmcsField::HOST_ES_SELECTOR, 0);
+        vmcs_write16(VmcsField::HOST_SS_SELECTOR, 24);
 
-    pub(crate) fn vcpu_vmcs_init(&self) {
+        vmcs_write16(VmcsField::HOST_FS_SELECTOR, 0); /* 22.2.4 */
+        vmcs_write16(VmcsField::HOST_GS_SELECTOR, 0); /* 22.2.4 */
+        vmcs_write16(VmcsField::HOST_TR_SELECTOR,64);
+     // let fs = read_msr(X86Msr::FS_BASE);
+        let fs = unsafe { bindings::rkvm_rdfsbase()};
+        vmcs_write64(VmcsField::HOST_FS_BASE, fs);
+     // let gs = read_msr(X86Msr::GS_BASE);
+        let gs = unsafe { bindings::rkvm_rdgsbase()};
+        vmcs_write64(VmcsField::HOST_GS_BASE, gs);
+
+        // from kvm
+        vmcs_write64(VmcsField::HOST_IA32_SYSENTER_ESP, 0);
+        vmcs_write64(VmcsField::HOST_IA32_SYSENTER_EIP, 0);
+        vmcs_write32(VmcsField::HOST_IA32_SYSENTER_CS, 0);
+
+        let gdt = unsafe{ bindings::rkvm_get_current_gdt_ro() };
+        let tss = unsafe{ bindings::rkvm_get_current_tss_ro() };
+        pr_info!("### get gdt={:x}, tss={:x}, fs={:x}, gs={:x}  \n", gdt, tss, fs, gs);
+        vmcs_write64(VmcsField::HOST_TR_BASE, tss);
+        vmcs_write64(VmcsField::HOST_GDTR_BASE, gdt);
+        vmcs_write64(VmcsField::HOST_IDTR_BASE, 0xfffffe0000000000);
+        vmcs_write32(VmcsField::VM_EXIT_MSR_LOAD_COUNT, 0);
+        vmcs_write64(VmcsField::HOST_RIP, vmx_exit as u64);
+    }
+    pub(crate) fn vcpu_vmcs_init(&mut self) {
+        self.setup_config();
         vmcs_write64(VmcsField::VMCS_LINK_POINTER, 0xffffffffffffffff);
         vmcs_write32(
             VmcsField::PIN_BASED_VM_EXEC_CONTROL,
             self.pin_based_exec_ctrl,
         );
+        pr_info!("  pin_based = {:x} \n", self.pin_based_exec_ctrl);
         vmcs_write32(
             VmcsField::CPU_BASED_VM_EXEC_CONTROL,
             self.cpu_based_exec_ctrl,
         );
+        pr_info!("  cpu_based = {:x} \n", self.cpu_based_exec_ctrl);
         vmcs_write32(
             VmcsField::SECONDARY_VM_EXEC_CONTROL,
             self.cpu_based_2nd_exec_ctrl,
         );
+        pr_info!("  cpu_2nd_based = {:x} \n", self.cpu_based_2nd_exec_ctrl);
 
+        vmcs_write32(VmcsField::EXCEPTION_BITMAP, 0x60042);
         vmcs_write32(VmcsField::PAGE_FAULT_ERROR_CODE_MASK, 0);
         vmcs_write32(VmcsField::PAGE_FAULT_ERROR_CODE_MATCH, 0);
         vmcs_write32(VmcsField::CR3_TARGET_COUNT, 0); /* 22.2.1 */
-
-        vmcs_write16(VmcsField::HOST_FS_SELECTOR, 0); /* 22.2.4 */
-        vmcs_write16(VmcsField::HOST_GS_SELECTOR, 0); /* 22.2.4 */
         self.set_host_constant_vmcs();
         vmcs_write32(VmcsField::VM_EXIT_CONTROLS, self.vmexit_ctrl);
         vmcs_write32(VmcsField::VM_ENTRY_CONTROLS, self.vmentry_ctrl);
+        pr_info!("  vmexit_ctrl = {:x} \n", self.vmexit_ctrl);
+        pr_info!("  vmentry_ctrl = {:x} \n", self.vmentry_ctrl);
+        vmcs_write32(VmcsField::VM_ENTRY_MSR_LOAD_COUNT, 0);
+        vmcs_write32(VmcsField::VM_ENTRY_INTR_INFO_FIELD, 0);
+        vmcs_write32(VmcsField::VM_EXIT_MSR_LOAD_COUNT, 0);
+        vmcs_write32(VmcsField::VM_EXIT_MSR_STORE_COUNT, 0);
+
+        vmcs_write64(VmcsField::GUEST_CR0, 0x30);
+        vmcs_write64(VmcsField::CR0_READ_SHADOW, 0x60000010);
+        vmcs_write64(VmcsField::CR0_GUEST_HOST_MASK, 0xfffffffffffffff7);
+
+
+        vmcs_write64(VmcsField::GUEST_CR4, 0x00002040);
+        vmcs_write64(VmcsField::CR4_GUEST_HOST_MASK, 0xfffffffffffef871);
+        vmcs_write64(VmcsField::CR4_READ_SHADOW, 0);
+
+        vmcs_write32(VmcsField::GUEST_SYSENTER_CS, 0);
+        vmcs_write64(VmcsField::GUEST_SYSENTER_ESP, 0);
+        vmcs_write64(VmcsField::GUEST_SYSENTER_EIP, 0);
+        vmcs_write64(VmcsField::GUEST_IA32_DEBUGCTL, 0);
+        // vcpu reset
+        vmcs_write16(VmcsField::GUEST_CS_SELECTOR, 0x0);
+        vmcs_write64(VmcsField::GUEST_CS_BASE, 0x0);
+        vmcs_write32(VmcsField::GUEST_CS_LIMIT, 0xffff);
+        vmcs_write32(VmcsField::GUEST_CS_AR_BYTES, 0x009b);
+
+        vmcs_write16(VmcsField::GUEST_TR_SELECTOR, 0);
+        vmcs_write64(VmcsField::GUEST_TR_BASE, 0);
+        vmcs_write32(VmcsField::GUEST_TR_LIMIT, 0xffff);
+        vmcs_write32(VmcsField::GUEST_TR_AR_BYTES, 0x008b);
+
+        vmcs_write64(VmcsField::GUEST_DS_BASE, 0);
+        vmcs_write32(VmcsField::GUEST_DS_LIMIT, 0xffff);
+        vmcs_write16(VmcsField::GUEST_DS_SELECTOR, 0x0);
+        vmcs_write32(VmcsField::GUEST_DS_AR_BYTES, 0x0093);
+
+        vmcs_write64(VmcsField::GUEST_SS_BASE, 0);
+        vmcs_write32(VmcsField::GUEST_SS_LIMIT, 0xffff);
+        vmcs_write16(VmcsField::GUEST_SS_SELECTOR, 0x0);
+        vmcs_write32(VmcsField::GUEST_SS_AR_BYTES, 0x0093);
+
+        vmcs_write64(VmcsField::GUEST_ES_BASE, 0);
+        vmcs_write32(VmcsField::GUEST_ES_LIMIT, 0xffff);
+        vmcs_write16(VmcsField::GUEST_ES_SELECTOR, 0x0);
+        vmcs_write32(VmcsField::GUEST_ES_AR_BYTES, 0x0093);
+
+        vmcs_write64(VmcsField::GUEST_FS_BASE, 0);
+        vmcs_write32(VmcsField::GUEST_FS_LIMIT, 0xffff);
+        vmcs_write16(VmcsField::GUEST_FS_SELECTOR, 0x0);
+        vmcs_write32(VmcsField::GUEST_FS_AR_BYTES, 0x0093);
+
+        vmcs_write64(VmcsField::GUEST_GS_BASE, 0);
+        vmcs_write32(VmcsField::GUEST_GS_LIMIT, 0xffff);
+        vmcs_write16(VmcsField::GUEST_GS_SELECTOR, 0x0);
+        vmcs_write32(VmcsField::GUEST_GS_AR_BYTES, 0x0093);
+
+        vmcs_write16(VmcsField::GUEST_LDTR_SELECTOR, 0);
+        vmcs_write64(VmcsField::GUEST_LDTR_BASE, 0);
+        vmcs_write32(VmcsField::GUEST_LDTR_LIMIT, 0xffff);
+        vmcs_write32(VmcsField::GUEST_LDTR_AR_BYTES, 0x00082);
+
+        vmcs_write64(VmcsField::GUEST_GDTR_BASE, 0);
+        vmcs_write32(VmcsField::GUEST_GDTR_LIMIT, 0xffff);
+        vmcs_write64(VmcsField::GUEST_IDTR_BASE, 0);
+        vmcs_write32(VmcsField::GUEST_IDTR_LIMIT, 0xffff);
+
+        vmcs_write64(VmcsField::GUEST_RFLAGS, 0x0);
+
+        vmcs_write32(VmcsField::GUEST_ACTIVITY_STATE, 0);
+        vmcs_write32(VmcsField::GUEST_INTERRUPTIBILITY_INFO, 0);
+
+        vmcs_write64(VmcsField::GUEST_RSP, 0);
+        vmcs_write64(VmcsField::GUEST_CR3, 0);
+
+        let pat = read_msr(X86Msr::PAT);
+        vmcs_write64(VmcsField::GUEST_IA32_PAT, 0x7040600070406);
+        vmcs_write64(VmcsField::HOST_IA32_PAT, pat);
+        let mut efer = read_msr(X86Msr::EFER);
+        vmcs_write64(VmcsField::HOST_IA32_EFER, efer);
+        pr_info!(" host_efer = {:x} \n", efer);
+        efer &= !(X86_EFER_LME | X86_EFER_LMA);
+        vmcs_write64(VmcsField::GUEST_IA32_EFER, /*efer*/0);
+        vmcs_write32(VmcsField::CR3_TARGET_COUNT,0);
+        vmcs_write64(VmcsField::TSC_OFFSET, 0);
+        vmcs_write64(VmcsField::GUEST_DR7, 0x400);
+        vmcs_write64(VmcsField::GUEST_IA32_DEBUGCTL, 0);
+        vmcs_write64(VmcsField::GUEST_PENDING_DBG_EXCEPTIONS, 0);
+
+        //vmcs_write16(VmcsField::VIRTUAL_PROCESSOR_ID, 1);
+        pr_info!(" ### vcpu_vmcs_init \n");
     }
+        
 } //impl
 
 extern "C" {
