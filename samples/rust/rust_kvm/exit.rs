@@ -119,7 +119,21 @@ impl From<u32> for ExitReason {
             46 => ExitReason::ACCESS_GDTR_OR_IDTR,
             47 => ExitReason::ACCESS_LDTR_OR_TR,
             48 => ExitReason::EPT_VIOLATION,
-            _ => ExitReason::UNKNOWN,
+            49 => ExitReason::EPT_MISCONFIGURATION,
+            50 => ExitReason::INVEPT,
+            51 => ExitReason::RDTSCP,
+            52 => ExitReason::VMX_PREEMPT_TIMER_EXPIRED,
+            53 => ExitReason::INVVPID,
+            54 => ExitReason::WBINVD,
+            55 => ExitReason::XSETBV,
+            56 => ExitReason::APIC_WRITE,
+            57 => ExitReason::RDRAND,
+            58 => ExitReason::INVPCID,
+            59 => ExitReason::VMFUNC,
+            60 => ExitReason::ENCLS,
+            61 => ExitReason::RDSEED,
+            62 => ExitReason::PAGE_MODIFICATION_LOG_FULL,
+            _  => ExitReason::UNKNOWN,
         }
     }
 }
