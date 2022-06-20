@@ -113,14 +113,9 @@ impl Vcpu {
         } // loop
     }
 }
-/*
-fn vmx_update_host(vmx_state: &mut VmxState, host_rsp: u64) {
-    vmx_state.host_state.rsp = host_rsp;
-    vmcs_write64(VmcsField::HOST_RSP, host_rsp);
-}
-*/
+
 extern "C" {
-    fn _vmx_vcpu_run(vmx_state: &mut VmxState, launched: bool) -> u64;
+    fn _vmx_vcpu_run(guest_state: &GuestState) -> u32;
 }
 
 global_asm!(
@@ -134,77 +129,48 @@ _vmx_vcpu_run:
     push   r13
     push   r12
     push   rbx
-    push   rdi
-    mov    rsi,rbx
-//    lea    rsi, -0x8[rsp]
 
-    mov    rax,[rsp]
-    test   bl,bl
-    mov    rcx,0x8[rax]
-    mov    rdx,0x10[rax]
-    mov    rbx,0x18[rax]
-    mov    rbp,0x28[rax]
-    mov    rsi,0x30[rax]
-    mov    rdi,0x38[rax]
-    mov    r8,0x40[rax]
-    mov    r9,0x48[rax]
-    mov    r10,0x50[rax]
-    mov    r11,0x58[rax]
-    mov    r12,0x60[rax]
-    mov    r13,0x68[rax]
-    mov    r14,0x70[rax]
-    mov    r15,0x78[rax]
-    mov    rax,[rax]
+    mov     [rdi], rsp
+    mov     rsp, rdi
 
+    add     rsp, 8
+    pop     rax
+    pop     rcx
+    pop     rdx
+    pop     rbx
+    add     rsp, 8 // skip rsp
+    pop     rbp
+    pop     rsi
+    pop     rdi
+    pop     r8
+    pop     r9
+    pop     r10
+    pop     r11
+    pop     r12
+    pop     r13
+    pop     r14
+    pop     r15
+
+    cmp     byte ptr [rsp], 0
     je 3f
-   vmresume
+    vmresume
     jmp 4f
-3: vmlaunch
+3:  vmlaunch
+
 4:
-    jbe    2f
-    push   rax
-    mov    rax,0x8[rsp]
-//  pop   [rax]
-    pop    rcx
-    mov    [rax],rcx
-    mov    0x8[rax],rcx
-    mov    0x10[rax],rdx
-    mov    0x18[rax],rbx
-    mov    0x28[rax],rbp
-    mov    0x30[rax],rsi
-    mov    0x38[rax],rdi
-    mov    0x40[rax],r8
-    mov    0x48[rax],r9
-    mov    0x50[rax],r10
-    mov    0x58[rax],r11
-    mov    0x60[rax],r12
-    mov    0x68[rax],r13
-    mov    0x70[rax],r14
-    mov    0x78[rax],r15
-    xor    eax,eax
-1:  xor    ecx,ecx
-    xor    edx,edx
-    xor    ebx,ebx
-    xor    ebp,ebp
-    xor    esi,esi
-    xor    edi,edi
-    xor    r8d,r8d
-    xor    r9d,r9d
-    xor    r10d,r10d
-    xor    r11d,r11d
-    xor    r12d,r12d
-    xor    r13d,r13d
-    xor    r14d,r14d
-    xor    r15d,r15d
-    add    rsp, 0x8
-    pop    rbx
-    pop    r12
-    pop    r13
-    pop    r14
-    pop    r15
-    pop    rbp
+    // We will only be here if vmlaunch or vmresume failed.
+    // Restore host callee, RSP and return address.
+    mov     rsp, [rsp - 17*8]
+    pop     rbx
+    pop     r12
+    pop     r13
+    pop     r14
+    pop     r15
+    pop     rbp
+
+    // return true
+    mov     eax, 1
     ret
-2:  mov    eax, 0x1
-    jmp    1b
 "
 );
+

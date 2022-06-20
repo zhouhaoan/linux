@@ -574,13 +574,46 @@ impl VmcsConfig {
 } //impl
 
 extern "C" {
-    fn vmx_vmexit();
+    fn vmx_exit() -> u32;
 }
 
 global_asm!(
     "
-.global vmx_vmexit
-vmx_vmexit:
-   ret
+.global vmx_exit
+vmx_exit:
+    // Store the guest registers not covered by the VMCS. At this point,
+    // guest_state is in RSP.
+    add     rsp, 17 * 8
+    push    r15
+    push    r14
+    push    r13
+    push    r12
+    push    r11
+    push    r10
+    push    r9
+    push    r8
+    push    rdi
+    push    rsi
+    push    rbp
+    sub     rsp, 8 //rsp
+    push    rbx
+    push    rdx
+    push    rcx
+    push    rax
+    sub     rsp, 8
+
+    pop     rsp
+
+   // Load host callee save registers, return address, and processor flags.
+    pop     rbx
+    pop     r12
+    pop     r13
+    pop     r14
+    pop     r15
+    pop     rbp
+
+    // Return false
+    xor     rax, rax
+    ret
 "
 );
