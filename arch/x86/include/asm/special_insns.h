@@ -82,6 +82,15 @@ void native_write_cr4(unsigned long val);
 unsigned long cr4_read_shadow(void);
 void rkvm_vmxon(u64 addr);
 void rkvm_vmxoff(void);
+
+void rkvm_wrgsbase(unsigned long gs);
+void rkvm_wrfsbase(unsigned long fs);
+unsigned long rkvm_rdgsbase(void);
+unsigned long rkvm_rdfsbase(void);
+
+unsigned short rkvm_read_ldt(void);
+void rkvm_load_ldt(unsigned short sel);
+
 unsigned long long rkvm_read_msr(unsigned int msr);
 void rkvm_write_msr(unsigned int msr, u32 low, u32 high);
 u64 rkvm_rflags_read(void);
