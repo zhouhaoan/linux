@@ -11,6 +11,47 @@ use kernel::{bindings, bit, c_types::c_void, pages::Pages, sync::Ref, Error, Res
 #[derive(Debug, Copy, Clone)]
 #[allow(dead_code)]
 #[allow(non_camel_case_types)]
+enum RkvmUserExitReason {
+    RKVM_EXIT_UNKNOWN          =       0,
+    RKVM_EXIT_EXCEPTION        =       1,
+    RKVM_EXIT_IO               =       2,
+    RKVM_EXIT_HYPERCALL        =       3,
+    RKVM_EXIT_DEBUG            =       4,
+    RKVM_EXIT_HLT              =       5,
+    RKVM_EXIT_MMIO             =       6,
+    RKVM_EXIT_IRQ_WINDOW_OPEN  =       7,
+    RKVM_EXIT_SHUTDOWN         =       8,
+    RKVM_EXIT_FAIL_ENTRY       =       9,
+    RKVM_EXIT_INTR             =       10,
+    RKVM_EXIT_SET_TPR          =       11,
+    RKVM_EXIT_TPR_ACCESS       =       12,
+    RKVM_EXIT_S390_SIEIC       =       13,
+    RKVM_EXIT_S390_RESET       =       14,
+    RKVM_EXIT_DCR              =       15,
+    RKVM_EXIT_NMI              =       16,
+    RKVM_EXIT_INTERNAL_ERROR   =       17,
+    RKVM_EXIT_OSI              =       18,
+    RKVM_EXIT_PAPR_HCALL       =       19,
+    RKVM_EXIT_S390_UCONTROL    =       20,
+    RKVM_EXIT_WATCHDOG         =       21,
+    RKVM_EXIT_S390_TSCH        =       22,
+    RKVM_EXIT_EPR              =       23,
+    RKVM_EXIT_SYSTEM_EVENT     =       24,
+    RKVM_EXIT_S390_STSI        =       25,
+    RKVM_EXIT_IOAPIC_EOI       =       26,
+    RKVM_EXIT_HYPERV           =       27,
+    RKVM_EXIT_ARM_NISV         =       28,
+    RKVM_EXIT_X86_RDMSR        =       29,
+    RKVM_EXIT_X86_WRMSR        =       30,
+    RKVM_EXIT_DIRTY_RING_FULL  =       31,
+    RKVM_EXIT_AP_RESET_HOLD    =       32,
+    RKVM_EXIT_X86_BUS_LOCK     =       33,
+}
+
+#[repr(u32)]
+#[derive(Debug, Copy, Clone)]
+#[allow(dead_code)]
+#[allow(non_camel_case_types)]
 pub(crate) enum ExitReason {
     EXCEPTION_OR_NMI = 0,
     EXTERNAL_INTERRUPT = 1,
@@ -78,6 +119,46 @@ pub(crate) enum ExitReason {
     UMWAIT = 67,
     TPAUSE = 68,
     UNKNOWN = 200,
+}
+
+impl From<ExitReason> for  RkvmUserExitReason {
+    fn from(er: ExitReason) -> Self {
+       match er {
+         ExitReason::UNKNOWN         => RkvmUserExitReason::RKVM_EXIT_UNKNOWN,
+         ExitReason::HLT             => RkvmUserExitReason::RKVM_EXIT_HLT,
+         ExitReason::IO_INSTRUCTION  => RkvmUserExitReason::RKVM_EXIT_IO,
+         _                           => RkvmUserExitReason::RKVM_EXIT_UNKNOWN,
+       }
+    }
+}
+
+impl From<u32> for RkvmUserExitReason {
+    fn from(v: u32) -> Self {
+       match v {
+         0 => RkvmUserExitReason::RKVM_EXIT_UNKNOWN,
+         1 => RkvmUserExitReason::RKVM_EXIT_EXCEPTION,
+         2 => RkvmUserExitReason::RKVM_EXIT_IO,
+         3 => RkvmUserExitReason::RKVM_EXIT_HYPERCALL,
+         4 => RkvmUserExitReason::RKVM_EXIT_DEBUG,
+         5 => RkvmUserExitReason::RKVM_EXIT_HLT,
+         6 => RkvmUserExitReason::RKVM_EXIT_MMIO,
+         7 => RkvmUserExitReason::RKVM_EXIT_IRQ_WINDOW_OPEN,
+         8 => RkvmUserExitReason::RKVM_EXIT_SHUTDOWN,
+         9 => RkvmUserExitReason::RKVM_EXIT_FAIL_ENTRY,
+         10 => RkvmUserExitReason::RKVM_EXIT_INTR,
+         11 => RkvmUserExitReason::RKVM_EXIT_SET_TPR,
+         12 => RkvmUserExitReason::RKVM_EXIT_TPR_ACCESS,
+         15 => RkvmUserExitReason::RKVM_EXIT_DCR,
+         16 => RkvmUserExitReason::RKVM_EXIT_NMI,
+         17 => RkvmUserExitReason::RKVM_EXIT_INTERNAL_ERROR,
+         18 => RkvmUserExitReason::RKVM_EXIT_OSI,
+         19 => RkvmUserExitReason::RKVM_EXIT_PAPR_HCALL,
+         21 => RkvmUserExitReason::RKVM_EXIT_WATCHDOG,
+         23 => RkvmUserExitReason::RKVM_EXIT_EPR,
+         24 => RkvmUserExitReason::RKVM_EXIT_SYSTEM_EVENT,
+         _  => RkvmUserExitReason::RKVM_EXIT_UNKNOWN,
+      }
+   }
 }
 
 impl From<u32> for ExitReason {
@@ -212,6 +293,11 @@ impl ExitInfo {
 }
 
 pub(crate) fn handle_hlt(exit_info: &ExitInfo, vcpu: &VcpuWrapper) -> Result<u64> {
+    let mut vcpuinner = vcpu.vcpuinner.lock();
+    let ptr = (vcpuinner.run.va + 8) as *mut u32;
+    unsafe {
+        (*ptr) = (RkvmUserExitReason::from(exit_info.exit_reason)) as u32;
+    }
     exit_info.next_rip();
     Ok(0)
 }
@@ -222,7 +308,7 @@ pub(crate) fn handle_io(exit_info: &ExitInfo, vcpu: &VcpuWrapper) -> Result<u64>
     let ptr = (vcpuinner.run.va + 8) as *mut u64;
     let ptr1 = (vcpuinner.run.va + 32) as *mut Pio;
     unsafe {
-        (*ptr) = 2;
+        (*ptr) = (RkvmUserExitReason::from(exit_info.exit_reason)) as u32;
         (*ptr1).port = (exit_qualification >> 16) as u16;
         (*ptr1).size = ((exit_qualification & 7) + 1) as u8;
         (*ptr1).direction = ((exit_qualification & 8) != 0) as u8;
