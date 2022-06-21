@@ -18,21 +18,21 @@ pub(crate) struct HostState {
 }
 
 impl HostState {
-   pub(crate) fn new() -> Self {
-       Self{
-           host_rsp: 0,
-                cr3: 0,
-                cr4: 0,
-                fs_base: 0,
-                gs_base: 0,
-                fs_sel: 0,
-                gs_sel: 0,
-                ldt_sel: 0,
-                ds_sel: 0,
-                es_sel: 0,
-		cr2: 0,
-       }
-  }
+    pub(crate) fn new() -> Self {
+        Self {
+            host_rsp: 0,
+            cr3: 0,
+            cr4: 0,
+            fs_base: 0,
+            gs_base: 0,
+            fs_sel: 0,
+            gs_sel: 0,
+            ldt_sel: 0,
+            ds_sel: 0,
+            es_sel: 0,
+            cr2: 0,
+        }
+    }
 }
 
 #[repr(C)]
@@ -75,28 +75,27 @@ macro_rules! BITS_SHIFT {
 #[allow(dead_code)]
 impl GuestState {
     pub(crate) fn new() -> Self {
-       Self{
-                host_rsp: 0,
-                rax: 0,
-                rcx: 0,
-                rdx: 0,
-                rbx: 0,
-                rsp: 0,
-                rbp: 0,
-                rsi: 0,
-                rdi: 0,
-                r8: 0,
-                r9: 0,
-                r10: 0,
-                r11: 0,
-                r12: 0,
-                r13: 0,
-                r14: 0,
-                r15: 0,
-                rip: 0,
-               launched: false,
-       }
-
+        Self {
+            host_rsp: 0,
+            rax: 0,
+            rcx: 0,
+            rdx: 0,
+            rbx: 0,
+            rsp: 0,
+            rbp: 0,
+            rsi: 0,
+            rdi: 0,
+            r8: 0,
+            r9: 0,
+            r10: 0,
+            r11: 0,
+            r12: 0,
+            r13: 0,
+            r14: 0,
+            r15: 0,
+            rip: 0,
+            launched: false,
+        }
     }
     // Convenience getters for accessing low 32-bits of common registers.
     pub(crate) fn get_eax(&self) -> u32 {
@@ -128,4 +127,3 @@ impl GuestState {
         self.rdx = BITS_SHIFT!(value, 63, 32);
     }
 }
-
