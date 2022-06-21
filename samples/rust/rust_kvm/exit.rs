@@ -266,7 +266,8 @@ macro_rules! RKVM_PAGES_PER_HPAGE {
     };
 }
 fn rkvm_pagefault(vcpu: &Vcpu, fault: &mut RkvmPageFault) -> Result {
-    let slot = &vcpu.guest.lock().memslot;
+    let vcpuinner = vcpu.vcpuinner.lock();
+    let slot = &vcpuinner.guest.guestinner.lock().memslot;
     let uaddr = slot.userspace_addr;
     let base_gfn = slot.base_gfn;
     if fault.gfn < base_gfn {
