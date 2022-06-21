@@ -266,7 +266,7 @@ macro_rules! RKVM_PAGES_PER_HPAGE {
         ((1 << ((($level) - 1) * 9 + bindings::PAGE_SHIFT as u64)) / PAGE_SIZE)
     };
 }
-fn rkvm_pagefault(vcpu: &Vcpu, fault: &mut RkvmPageFault) -> Result {
+fn rkvm_pagefault(vcpu: &VcpuWrapper, fault: &mut RkvmPageFault) -> Result {
     let vcpuinner = vcpu.vcpuinner.lock();
     let slot = &vcpuinner.guest.guestinner.lock().memslot;
     let uaddr = slot.userspace_addr;
@@ -348,7 +348,7 @@ fn make_noleaf_spte(pt: u64) -> u64 {
     spte |= pa | 0x7u64;
     spte
 }
-fn rkvm_tdp_map(vcpu: &mut Vcpu, fault: &mut RkvmPageFault) -> Result {
+fn rkvm_tdp_map(vcpu: &mut VcpuWrapper, fault: &mut RkvmPageFault) -> Result {
     let mut level: u64 = 4;
     let mut vcpuinner = vcpu.vcpuinner.lock();
     let mut level_gfn = make_level_gfn(fault.gfn, level);
