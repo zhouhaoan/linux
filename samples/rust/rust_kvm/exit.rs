@@ -5,6 +5,8 @@ use crate::vmcs::*;
 use core::mem::MaybeUninit;
 use kernel::prelude::*;
 use kernel::{bindings, bit, c_types::c_void, pages::Pages, sync::Ref, Error, Result, PAGE_SIZE};
+use crate::Pio;
+use crate::VcpuWrapper;
 
 #[repr(u32)]
 #[derive(Debug, Copy, Clone)]
@@ -265,8 +267,9 @@ macro_rules! RKVM_PAGES_PER_HPAGE {
         ((1 << ((($level) - 1) * 9 + bindings::PAGE_SHIFT as u64)) / PAGE_SIZE)
     };
 }
-fn rkvm_pagefault(vcpu: &Vcpu, fault: &mut RkvmPageFault) -> Result {
-    let slot = &vcpu.guest.lock().memslot;
+fn rkvm_pagefault(vcpu: &VcpuWrapper, fault: &mut RkvmPageFault) -> Result {
+    let mut vcpuinner = vcpu.vcpuinner.lock();
+    let slot = &vcpuinner.guest.guestinner.lock().memslot;
     let uaddr = slot.userspace_addr;
     let base_gfn = slot.base_gfn;
     if fault.gfn < base_gfn {
@@ -346,7 +349,7 @@ fn make_noleaf_spte(pt: u64) -> u64 {
     spte |= pa | 0x7u64;
     spte
 }
-fn rkvm_tdp_map(vcpu: &mut Vcpu, fault: &mut RkvmPageFault) -> Result {
+fn rkvm_tdp_map(vcpu: &VcpuWrapper, fault: &mut RkvmPageFault) -> Result {
     let mut level: u64 = 4;
     let mut vcpuinner = vcpu.vcpuinner.lock();
     let mut level_gfn = make_level_gfn(fault.gfn, level);
@@ -354,7 +357,7 @@ fn rkvm_tdp_map(vcpu: &mut Vcpu, fault: &mut RkvmPageFault) -> Result {
         Ok(gfn) => gfn,
         Err(e) => return Err(e),
     };
-    let mut pre_mmu_page = vcpu.mmu.root_mmu_page.clone();
+    let mut pre_mmu_page = vcpuinner.mmu.root_mmu_page.clone();
     let mut spte = rkvm_read_spte(pre_mmu_page.clone(), level_gfn, level);
     let mut spte = match spte {
         Err(err) => return Err(err),
@@ -364,8 +367,8 @@ fn rkvm_tdp_map(vcpu: &mut Vcpu, fault: &mut RkvmPageFault) -> Result {
         if level == fault.goal_level {
             break;
         }
-        if !vcpu.mmu.is_pte_present(spte) {
-            let mut mmu_page = vcpu.mmu.alloc_mmu_page(level - 1, level_gfn)?;
+        if !vcpuinner.mmu.is_pte_present(spte) {
+            let mut mmu_page = vcpuinner.mmu.alloc_mmu_page(level - 1, level_gfn)?;
             let child_spt = match mmu_page.spt {
                 Some(spt) => spt,
                 None => return Err(Error::ENOMEM),
@@ -404,7 +407,7 @@ fn rkvm_tdp_map(vcpu: &mut Vcpu, fault: &mut RkvmPageFault) -> Result {
     Ok(())
 }
 
-pub(crate) fn handle_ept_violation(exit_info: &ExitInfo, vcpu: &mut Vcpu) -> Result<u64> {
+pub(crate) fn handle_ept_violation(exit_info: &ExitInfo, vcpu: &VcpuWrapper) -> Result<u64> {
     let mut error_code: u64 = 0;
     let gpa = vmcs_read64(VmcsField::GUEST_PHYSICAL_ADDRESS);
     if (exit_info.exit_qualification & EptViolationMask::EPT_VIOLATION_ACC_READ as u64) != 0 {
