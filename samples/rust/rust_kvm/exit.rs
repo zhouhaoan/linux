@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-use super::{Vcpu, VcpuWrapper, Pio>;
+use super::{Vcpu, VcpuWrapper, Pio};
 use super::{Guest, GuestWrapper};
 use crate::mmu::*;
 use crate::vmcs::*;
@@ -305,7 +305,7 @@ pub(crate) fn handle_hlt(exit_info: &ExitInfo, vcpu: &VcpuWrapper) -> Result<u64
 pub(crate) fn handle_io(exit_info: &ExitInfo, vcpu: &VcpuWrapper) -> Result<u64> {
     let exit_qualification = exit_info.exit_qualification;
     let mut vcpuinner = vcpu.vcpuinner.lock();
-    let ptr = (vcpuinner.run.va + 8) as *mut u64;
+    let ptr = (vcpuinner.run.va + 8) as *mut u32;
     let ptr1 = (vcpuinner.run.va + 32) as *mut Pio;
     unsafe {
         (*ptr) = (RkvmUserExitReason::from(exit_info.exit_reason)) as u32;
