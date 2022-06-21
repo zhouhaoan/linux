@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
-use super::Vcpu;
+use super::{Vcpu, VcpuWrapper, Pio>;
+use super::{Guest, GuestWrapper};
 use crate::mmu::*;
 use crate::vmcs::*;
 use core::mem::MaybeUninit;
