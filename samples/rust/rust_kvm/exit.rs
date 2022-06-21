@@ -404,7 +404,7 @@ fn rkvm_tdp_map(vcpu: &mut Vcpu, fault: &mut RkvmPageFault) -> Result {
     Ok(())
 }
 
-pub(crate) fn handle_ept_violation(exit_info: &ExitInfo, vcpu: &mut Vcpu) -> Result<u64> {
+pub(crate) fn handle_ept_violation(exit_info: &ExitInfo, vcpu: &VcpuWrapper) -> Result<u64> {
     let mut error_code: u64 = 0;
     let gpa = vmcs_read64(VmcsField::GUEST_PHYSICAL_ADDRESS);
     if (exit_info.exit_qualification & EptViolationMask::EPT_VIOLATION_ACC_READ as u64) != 0 {
