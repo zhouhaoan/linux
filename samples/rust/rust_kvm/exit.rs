@@ -210,7 +210,7 @@ impl ExitInfo {
     }
 }
 
-pub(crate) fn handle_hlt(exit_info: &ExitInfo, vcpu: &Vcpu) -> Result<u64> {
+pub(crate) fn handle_hlt(exit_info: &ExitInfo, vcpu: &VcpuWrapper) -> Result<u64> {
     exit_info.next_rip();
     Ok(0)
 }
@@ -227,11 +227,20 @@ pub(crate) fn handle_io(exit_info: &ExitInfo, vcpu: &VcpuWrapper) -> Result<u64>
         (*ptr1).direction = ((exit_qualification & 8) != 0) as u8;
         (*ptr1).count = 1;
     }
-    pr_info!(" handle_io port ={:x} \n", (exit_qualification >> 16) as u16);
+    pr_info!(
+        " handle_io port ={:x} \n",
+        (exit_qualification >> 16) as u16
+    );
     exit_info.next_rip();
     Ok(0)
 }
 
+pub(crate) fn handle_ept_misconfig(exit_info: &ExitInfo, vcpu: &VcpuWrapper) -> Result<u64> {
+    let mut error_code: u64 = 0;
+    let gpa = vmcs_read64(VmcsField::GUEST_PHYSICAL_ADDRESS);
+    exit_info.next_rip();
+    Ok(0)
+}
 
 const LEVELBITS: u64 = 9;
 macro_rules! LEVEL_SHIFT {
