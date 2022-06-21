@@ -133,7 +133,7 @@ impl From<u32> for ExitReason {
             60 => ExitReason::ENCLS,
             61 => ExitReason::RDSEED,
             62 => ExitReason::PAGE_MODIFICATION_LOG_FULL,
-            _  => ExitReason::UNKNOWN,
+            _ => ExitReason::UNKNOWN,
         }
     }
 }
@@ -210,10 +210,28 @@ impl ExitInfo {
     }
 }
 
-pub(crate) fn handle_hlt(exit_info: &ExitInfo, vcpu: &Vcpu) -> Result {
+pub(crate) fn handle_hlt(exit_info: &ExitInfo, vcpu: &Vcpu) -> Result<u64> {
     exit_info.next_rip();
-    Ok(())
+    Ok(0)
 }
+
+pub(crate) fn handle_io(exit_info: &ExitInfo, vcpu: &VcpuWrapper) -> Result<u64> {
+    let exit_qualification = exit_info.exit_qualification;
+    let mut vcpuinner = vcpu.vcpuinner.lock();
+    let ptr = (vcpuinner.run.va + 8) as *mut u64;
+    let ptr1 = (vcpuinner.run.va + 32) as *mut Pio;
+    unsafe {
+        (*ptr) = 2;
+        (*ptr1).port = (exit_qualification >> 16) as u16;
+        (*ptr1).size = ((exit_qualification & 7) + 1) as u8;
+        (*ptr1).direction = ((exit_qualification & 8) != 0) as u8;
+        (*ptr1).count = 1;
+    }
+    pr_info!(" handle_io port ={:x} \n", (exit_qualification >> 16) as u16);
+    exit_info.next_rip();
+    Ok(0)
+}
+
 
 const LEVELBITS: u64 = 9;
 macro_rules! LEVEL_SHIFT {
@@ -243,7 +261,7 @@ fn rkvm_pagefault(vcpu: &Vcpu, fault: &mut RkvmPageFault) -> Result {
     let uaddr = slot.userspace_addr;
     let base_gfn = slot.base_gfn;
     if fault.gfn < base_gfn {
-       return Err(Error::EINVAL);
+        return Err(Error::EINVAL);
     }
     fault.hva = uaddr + (fault.gfn - base_gfn) * kernel::PAGE_SIZE as u64;
     let mut flags: u32 = bindings::FOLL_HWPOISON | bindings::FOLL_NOWAIT;
@@ -265,8 +283,8 @@ fn rkvm_pagefault(vcpu: &Vcpu, fault: &mut RkvmPageFault) -> Result {
 
 fn rkvm_read_spte(mmu_page: Ref<RkvmMmuPage>, gfn: u64, level: u64) -> Result<u64> {
     if level < 1 {
-       pr_info!(" rkvm_read_spte level={:?} < 1 \n", level);
-       return Err(Error::EINVAL);
+        pr_info!(" rkvm_read_spte level={:?} < 1 \n", level);
+        return Err(Error::EINVAL);
     }
     let offset: usize = SHADOW_PT_INDEX!((gfn << bindings::PAGE_SHIFT), level) as usize;
     let mut spte: u64 = 0;
@@ -278,10 +296,10 @@ fn rkvm_read_spte(mmu_page: Ref<RkvmMmuPage>, gfn: u64, level: u64) -> Result<u6
     Ok(spte)
 }
 
-fn rkvm_write_spte(mmu_page: Ref<RkvmMmuPage>, new_spte: u64, gfn: u64, level: u64) -> Result{
+fn rkvm_write_spte(mmu_page: Ref<RkvmMmuPage>, new_spte: u64, gfn: u64, level: u64) -> Result {
     if level < 1 {
-       pr_info!(" rkvm_write_spte level={:?} < 1 \n", level);
-       return Err(Error::EINVAL);
+        pr_info!(" rkvm_write_spte level={:?} < 1 \n", level);
+        return Err(Error::EINVAL);
     }
     let offset: usize = SHADOW_PT_INDEX!((gfn << bindings::PAGE_SHIFT), level) as usize;
     let p = &new_spte;
@@ -370,7 +388,7 @@ fn rkvm_tdp_map(vcpu: &mut Vcpu, fault: &mut RkvmPageFault) -> Result {
     if level == fault.goal_level {
         //make pte
         spte = make_spte(fault.pfn);
-        
+
         //set pte
         rkvm_write_spte(pre_mmu_page, spte, level_gfn, level);
     }
