@@ -1,15 +1,16 @@
 // SPDX-License-Identifier: GPL-2.0
 use kernel::{
     bindings,
+    c_types::c_void,
     linked_list::{GetLinks, Links, List},
     pages::Pages,
     prelude::*,
     sync::{Ref, UniqueRef},
-    Result,
+    Result, PAGE_SIZE,
 };
 
 use crate::vmcs::*;
-//use alloc::vec::Vec;
+
 #[repr(u64)]
 #[derive(Debug)]
 #[allow(dead_code)]
@@ -50,12 +51,18 @@ impl RkvmMmu {
             Ok(root) => root,
             Err(err) => return Err(err),
         };
+
         let hpa = match root.spt {
             Some(hpa) => hpa,
             None => return Err(Error::ENOMEM),
         };
+        pr_info!("RkvmMmu hpa(va) = {:x} \n", hpa);
+        let ptr = hpa as *mut c_void;
+        unsafe {
+            bindings::memset(ptr, 0, PAGE_SIZE as u64);
+        }
         let mut hpa = unsafe { bindings::rkvm_phy_address(hpa) };
-
+        pr_info!("RkvmMmu hpa(phy) = {:x}--root_hpa \n", hpa);
         let mut mmu = UniqueRef::try_new(Self {
             root_hpa: hpa, //physical addr
             root_mmu_page: root.clone(),
@@ -64,7 +71,6 @@ impl RkvmMmu {
 
         mmu.mmu_pages_list.push_back(root);
         Ok(mmu)
-        //let guest_cr3 =
     }
     pub(crate) fn alloc_mmu_page(&mut self, level: u64, gfn: u64) -> Result<Ref<RkvmMmuPage>> {
         let mmu_page = RkvmMmuPage::new(false, level, Some(gfn));
@@ -72,16 +78,33 @@ impl RkvmMmu {
             Ok(page) => page,
             Err(err) => return Err(err),
         };
+        let vaddr = match mmu_page.spt {
+            Some(va) => va,
+            None => return Err(Error::ENOMEM),
+        };
+        let ptr = vaddr as *mut c_void;
+        unsafe {
+            bindings::memset(ptr, 0, PAGE_SIZE as u64);
+        }
         let ret = mmu_page.clone();
         self.mmu_pages_list.push_back(mmu_page);
         Ok(ret)
     }
 
-    pub(crate) fn init_mmu_root(&mut self) -> Result {
-        // TODO: pgd setting
+    pub(crate) fn make_eptp(&mut self) -> u64 {
         let mut eptp: u64 = VmxEptpFlag::VMX_EPTP_MT_WB as u64 | VmxEptpFlag::VMX_EPTP_PWL_4 as u64;
-        eptp |= self.root_hpa;
+        eptp |= self.root_hpa; //| (1u64 << 6);
+        eptp
+    }
+
+    pub(crate) fn init_mmu_root(&mut self) -> Result {
+        //TODO: pgd setting
+        pr_info!(" ### init_mmu_root \n");
+        let eptp = self.make_eptp();
         vmcs_write64(VmcsField::EPT_POINTER, eptp);
+        pr_info!("hpa= {:x}, eptp = {:x} \n", self.root_hpa, eptp);
+        unsafe { bindings::rkvm_invept(1, eptp, 0) };
+
         Ok(())
     }
     pub(crate) fn is_pte_present(&self, pte: u64) -> bool {
@@ -119,7 +142,7 @@ impl RkvmMmuPage {
 
         Ok(mmu_page)
     }
-} //
+}
 
 impl GetLinks for RkvmMmuPage {
     type EntryType = RkvmMmuPage;

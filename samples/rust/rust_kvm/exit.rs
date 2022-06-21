@@ -348,7 +348,7 @@ fn make_noleaf_spte(pt: u64) -> u64 {
     spte |= pa | 0x7u64;
     spte
 }
-fn rkvm_tdp_map(vcpu: &mut VcpuWrapper, fault: &mut RkvmPageFault) -> Result {
+fn rkvm_tdp_map(vcpu: &VcpuWrapper, fault: &mut RkvmPageFault) -> Result {
     let mut level: u64 = 4;
     let mut vcpuinner = vcpu.vcpuinner.lock();
     let mut level_gfn = make_level_gfn(fault.gfn, level);
@@ -356,7 +356,7 @@ fn rkvm_tdp_map(vcpu: &mut VcpuWrapper, fault: &mut RkvmPageFault) -> Result {
         Ok(gfn) => gfn,
         Err(e) => return Err(e),
     };
-    let mut pre_mmu_page = vcpu.mmu.root_mmu_page.clone();
+    let mut pre_mmu_page = vcpuinner.mmu.root_mmu_page.clone();
     let mut spte = rkvm_read_spte(pre_mmu_page.clone(), level_gfn, level);
     let mut spte = match spte {
         Err(err) => return Err(err),
@@ -366,8 +366,8 @@ fn rkvm_tdp_map(vcpu: &mut VcpuWrapper, fault: &mut RkvmPageFault) -> Result {
         if level == fault.goal_level {
             break;
         }
-        if !vcpu.mmu.is_pte_present(spte) {
-            let mut mmu_page = vcpu.mmu.alloc_mmu_page(level - 1, level_gfn)?;
+        if !vcpuinner.mmu.is_pte_present(spte) {
+            let mut mmu_page = vcpuinner.mmu.alloc_mmu_page(level - 1, level_gfn)?;
             let child_spt = match mmu_page.spt {
                 Some(spt) => spt,
                 None => return Err(Error::ENOMEM),
