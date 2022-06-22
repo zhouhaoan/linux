@@ -623,7 +623,7 @@ impl VmcsConfig {
         let cr4 = unsafe { bindings::cr4_read_shadow() };
         vmcs_write64(VmcsField::HOST_CR0, cr0);
         vmcs_write64(VmcsField::HOST_CR3, cr3);
-        vmcs_write64(VmcsField::HOST_CR4, cr4);
+        vmcs_write64(VmcsField::HOST_CR4, 0x7726e0);
         vmcs_write16(VmcsField::HOST_CS_SELECTOR, 16);
         vmcs_write16(VmcsField::HOST_DS_SELECTOR, 0);
         vmcs_write16(VmcsField::HOST_ES_SELECTOR, 0);
