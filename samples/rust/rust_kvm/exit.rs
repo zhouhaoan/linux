@@ -370,8 +370,8 @@ fn rkvm_pagefault(vcpu: &VcpuWrapper, fault: &mut RkvmPageFault) -> Result {
         if nrpages != 1 {
             return Err(Error::ENOMEM);
         }
-        let pfn = *pages.as_mut_ptr() as *const u64;
-        fault.pfn = *pfn;
+        let page = *pages.as_mut_ptr() as *mut bindings::page;
+        fault.pfn = bindings::rkvm_page_to_pfn(page);
         fault.goal_level = 1;
     }
     pr_info!("pagefault: pfn={:?} \n", fault.pfn);
