@@ -323,6 +323,7 @@ pub(crate) fn handle_io(exit_info: &ExitInfo, vcpu: &VcpuWrapper) -> Result<u64>
 }
 
 pub(crate) fn handle_ept_misconfig(exit_info: &ExitInfo, vcpu: &VcpuWrapper) -> Result<u64> {
+    pr_info!("Enter handle EPT misconfiguration\n");
     let mut error_code: u64 = 0;
     let gpa = vmcs_read64(VmcsField::GUEST_PHYSICAL_ADDRESS);
     exit_info.next_rip();
@@ -419,19 +420,51 @@ fn make_level_gfn(gfn: u64, level: u64) -> Result<u64> {
     Ok(level_gfn)
 }
 
-fn make_spte(pfn: u64) -> u64 {
+fn make_spte(fault: &RkvmPageFault, flags: &EptMasks) -> u64 {
+    
+    let pfn = fault.pfn;
     let mut spte: u64 = 1u64 << 11; //SPTE_MMU_PRESENT_MASK
     let pa = pfn << bindings::PAGE_SHIFT;
+    
+    if flags.ad_disabled {
+        spte |= SpteFlag::SPTE_TDP_AD_DISABLED_MASK as u64;
+    }
+    // TODO: case with pte_access and marco ACC_XXXX_MASK
+    // TODO: works related to mtrr & mmio
+    spte |= pa | flags.ept_present_mask | flags.ept_exec_mask | flags.ept_user_mask;
+
+    if !fault.prefetch && !flags.ad_disabled {
+        spte |= flags.ept_accessed_mask;
+    }
+
+    //if host_writable
+    spte |= SpteFlag::EPT_SPTE_HOST_WRITABLE as u64 | SpteFlag::EPT_SPTE_MMU_WRITABLE as u64
+             | VmxEptFlag::VMX_EPT_WRITABLE_MASK as u64;
+
+    if !flags.ad_disabled {
+        spte |= flags.ept_dirty_mask;
+    }
     //TODO: permission settings in pte
-    spte |= pa | 0x77 | 0x600000000000000;
+    // spte |= pa | 0x77 | 0x600000000000000;
     spte
 }
 
-fn make_noleaf_spte(pt: u64) -> u64 {
+fn make_noleaf_spte(pt: u64, flags: &EptMasks) -> u64 {
     let mut spte: u64 = 1u64 << 11; //SPTE_MMU_PRESENT_MASK
     let pa = unsafe { bindings::rkvm_phy_address(pt) };
+    
+    spte |= pa | flags.ept_present_mask | flags.ept_user_mask 
+            | flags.ept_exec_mask | VmxEptFlag::VMX_EPT_WRITABLE_MASK as u64;
+    
+    if flags.ad_disabled {
+        spte |= SpteFlag::SPTE_TDP_AD_DISABLED_MASK as u64;
+    }
+    else {
+        spte |= flags.ept_accessed_mask;
+    }
+    
     //TODO: permission settings in pte
-    spte |= pa | 0x7u64;
+    // spte |= pa | 0x7u64;
     spte
 }
 fn rkvm_tdp_map(vcpu: &VcpuWrapper, fault: &mut RkvmPageFault) -> Result {
@@ -443,6 +476,7 @@ fn rkvm_tdp_map(vcpu: &VcpuWrapper, fault: &mut RkvmPageFault) -> Result {
         Err(e) => return Err(e),
     };
     let mut pre_mmu_page = vcpuinner.mmu.root_mmu_page.clone();
+    let flags = vcpuinner.mmu.spte_flags.clone();
     let mut spte = rkvm_read_spte(pre_mmu_page.clone(), level_gfn, level);
     let mut spte = match spte {
         Err(err) => return Err(err),
@@ -458,7 +492,7 @@ fn rkvm_tdp_map(vcpu: &VcpuWrapper, fault: &mut RkvmPageFault) -> Result {
                 Some(spt) => spt,
                 None => return Err(Error::ENOMEM),
             };
-            spte = make_noleaf_spte(child_spt);
+            spte = make_noleaf_spte(child_spt, &flags);
             rkvm_write_spte(pre_mmu_page.clone(), spte, level_gfn, level - 1);
             pr_info!(
                 "rkvm_tdp_map level={:?}, gfn={:?}, spte={:?} \n",
@@ -484,8 +518,13 @@ fn rkvm_tdp_map(vcpu: &VcpuWrapper, fault: &mut RkvmPageFault) -> Result {
 
     if level == fault.goal_level {
         //make pte
-        spte = make_spte(fault.pfn);
-
+        spte = make_spte(fault, &flags);
+        pr_info!(
+            "rkvm_tdp_map level={:?}, gfn={:?}, spte={:?} \n",
+            level,
+            level_gfn,
+            spte
+        );
         //set pte
         rkvm_write_spte(pre_mmu_page, spte, level_gfn, level);
     }
@@ -493,6 +532,7 @@ fn rkvm_tdp_map(vcpu: &VcpuWrapper, fault: &mut RkvmPageFault) -> Result {
 }
 
 pub(crate) fn handle_ept_violation(exit_info: &ExitInfo, vcpu: &VcpuWrapper) -> Result<u64> {
+    pr_info!("Enter handle EPT violation\n");
     let mut error_code: u64 = 0;
     let gpa = vmcs_read64(VmcsField::GUEST_PHYSICAL_ADDRESS);
     if (exit_info.exit_qualification & EptViolationMask::EPT_VIOLATION_ACC_READ as u64) != 0 {
