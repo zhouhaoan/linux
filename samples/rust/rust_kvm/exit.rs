@@ -495,7 +495,7 @@ fn rkvm_tdp_map(vcpu: &VcpuWrapper, fault: &mut RkvmPageFault) -> Result {
             spte = make_noleaf_spte(child_spt, &flags);
             rkvm_write_spte(pre_mmu_page.clone(), spte, level_gfn, level - 1);
             pr_info!(
-                "rkvm_tdp_map level={:?}, gfn={:?}, spte={:?} \n",
+                "rkvm_tdp_map level={:?}, gfn={:x}, spte={:x} \n",
                 level,
                 level_gfn,
                 spte
@@ -520,7 +520,7 @@ fn rkvm_tdp_map(vcpu: &VcpuWrapper, fault: &mut RkvmPageFault) -> Result {
         //make pte
         spte = make_spte(fault, &flags);
         pr_info!(
-            "rkvm_tdp_map level={:?}, gfn={:?}, spte={:?} \n",
+            "rkvm_tdp_map level={:?}, gfn={:x}, spte={:x} \n",
             level,
             level_gfn,
             spte

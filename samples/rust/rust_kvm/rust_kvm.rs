@@ -201,7 +201,7 @@ impl IoctlHandler for RkvmState {
                         None => return Err(Error::ENOENT),
                     }
                 };
-                pr_info!("Rust kvm: IOCTL_KVM_CREATE_VCPU ---0\n");
+                pr_info!("Rust kvm: IOCTL_KVM_CREATE_VCPU \n");
                 let revision_id = _shared.inner.lock().vmcsconf.revision_id;
                 let vcpu0 = VcpuWrapper::new(guest, revision_id);
 
@@ -209,7 +209,6 @@ impl IoctlHandler for RkvmState {
                     Err(error) => return Err(error),
                     Ok(vcpu0) => vcpu0,
                 };
-                pr_info!("Rust kvm: IOCTL_KVM_CREATE_VCPU ---1\n");
 
                 vcpu0.init(&mut _shared.inner.lock().vmcsconf);
                 let va = vcpu0.get_run();
@@ -220,7 +219,7 @@ impl IoctlHandler for RkvmState {
                     VCPU = Some(vcpu0);
                 }
 
-                pr_info!("Rust kvm: IOCTL_KVM_CREATE_VCPU --2\n");
+                pr_info!("Rust kvm: IOCTL_KVM_CREATE_VCPU finish\n");
 
                 Ok(0)
             }
