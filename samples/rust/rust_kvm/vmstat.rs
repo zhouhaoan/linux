@@ -1,5 +1,4 @@
 // SPDX-License-Identifier: GPL-2.0
-use kernel::prelude::*;
 
 #[repr(C)]
 #[allow(dead_code)]
