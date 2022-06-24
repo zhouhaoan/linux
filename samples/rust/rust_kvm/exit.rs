@@ -11,7 +11,7 @@ use kernel::{bindings, bit, c_types::c_void, pages::Pages, sync::Ref, Error, Res
 #[derive(Debug, Copy, Clone)]
 #[allow(dead_code)]
 #[allow(non_camel_case_types)]
-enum RkvmUserExitReason {
+pub(crate) enum RkvmUserExitReason {
     RKVM_EXIT_UNKNOWN = 0,
     RKVM_EXIT_EXCEPTION = 1,
     RKVM_EXIT_IO = 2,
