@@ -377,8 +377,7 @@ impl VcpuWrapper {
                 let host_rsp = vmcs_read64(VmcsField::HOST_RSP);
                 unsafe {
                     (*(vcpuinner.run.ptr)).exit_reason = 0xdead;
-                }
-                pr_info!(" run = {:x}, host_rsp {:x} \n", *ptr, host_rsp);
+                } 
 
                 let ret = vmcs_read32(VmcsField::VM_INSTRUCTION_ERROR);
                 let rflags = unsafe { bindings::rkvm_rflags_read() };
