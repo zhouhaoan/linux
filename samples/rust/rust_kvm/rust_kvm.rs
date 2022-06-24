@@ -24,10 +24,10 @@ mod vmcs;
 mod vmstat;
 mod x86reg;
 
-use crate::guest::{Guest, GuestWrapper};
+use crate::guest::GuestWrapper;
 use crate::vcpu::*;
 use crate::vmcs::*;
-use crate::x86reg::Cr4;
+
 
 module! {
     type: RustMiscdev,
@@ -56,7 +56,7 @@ impl RkvmState {
     fn try_new() -> Result<Ref<Self>> {
         pr_info!("RkvmState try_new \n");
         let mut vmcsconf = VmcsConfig::new()?;
-        let ret = vmcsconf.setup_config()?;
+        let _ret = vmcsconf.setup_config()?;
         let mut state = Pin::from(UniqueRef::try_new(Self {
             // SAFETY: `condvar_init!` is called below.
             state_changed: unsafe { CondVar::new() },
