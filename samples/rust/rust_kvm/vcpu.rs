@@ -144,10 +144,7 @@ pub(crate) struct Pio {
 #[allow(dead_code)]
 pub(crate) struct RkvmRun {
     /* in */
-    pub(crate) request_interrupt_window: u8,
-    pub(crate) immediate_exit: u8,
-    pub(crate) padding1: u32,
-    pub(crate) padding2: u16,
+    pub(crate) runin: u64,    
     /* out */
     pub(crate) exit_reason: u32,
     pub(crate) ready_for_interrupt_injection: u8,
@@ -376,12 +373,10 @@ impl VcpuWrapper {
                     bindings::rkvm_irq_enable();
                 }
                 let mut vcpuinner = self.vcpuinner.lock();
-                let ptr = (vcpuinner.run.va + 8) as *mut u64;
                 dump_vmcs();
                 let host_rsp = vmcs_read64(VmcsField::HOST_RSP);
                 unsafe {
-                    (*ptr) = 0xdead;
-                    (*(vcpuinner.run.ptr)).exit_reason = 0xffff;
+                    (*(vcpuinner.run.ptr)).exit_reason = 0xdead;
                 }
                 pr_info!(" run = {:x}, host_rsp {:x} \n", *ptr, host_rsp);
 
@@ -414,10 +409,11 @@ impl VcpuWrapper {
                 }
                 Err(err) => {
                     let mut vcpuinner = self.vcpuinner.lock();
-                    let ptr = (vcpuinner.run.va + 8) as *mut u64;
                     pr_info!("  vcpu run failed \n");
                     dump_vmcs();
-                    unsafe { (*ptr) = 9 };
+                    unsafe {
+                        (*(vcpuinner.run.ptr)).exit_reason = (RkvmUserExitReason::RKVM_EXIT_FAIL_ENTRY) as u32;
+                    }
                     return -1;
                 }
             }
