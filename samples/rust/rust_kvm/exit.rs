@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0
-use super::{Guest, GuestWrapper};
-use super::{Pio, Vcpu, VcpuWrapper};
+use super::VcpuWrapper;
 use crate::mmu::*;
 use crate::vmcs::*;
 use core::mem::MaybeUninit;
 use kernel::prelude::*;
-use kernel::{bindings, bit, c_types::c_void, pages::Pages, sync::Ref, Error, Result, PAGE_SIZE};
+use kernel::{bindings, bit, sync::Ref, Error, Result, PAGE_SIZE};
 
 #[repr(u32)]
 #[derive(Debug, Copy, Clone)]
@@ -324,10 +323,9 @@ pub(crate) fn handle_io(exit_info: &ExitInfo, vcpu: &VcpuWrapper) -> Result<u64>
 }
 
 pub(crate) fn handle_ept_misconfig(exit_info: &ExitInfo, vcpu: &VcpuWrapper) -> Result<u64> {
-    pr_debug!("Enter handle EPT misconfiguration\n");
-
-    let mut error_code: u64 = 0;
-    let gpa = vmcs_read64(VmcsField::GUEST_PHYSICAL_ADDRESS);
+    pr_info!("Enter handle EPT misconfiguration\n");
+    // let mut error_code: u64 = 0;
+    let _gpa = vmcs_read64(VmcsField::GUEST_PHYSICAL_ADDRESS);
     exit_info.next_rip();
     Ok(0)
 }
@@ -364,7 +362,7 @@ fn rkvm_pagefault(vcpu: &VcpuWrapper, fault: &mut RkvmPageFault) -> Result {
         return Err(Error::EINVAL);
     }
     fault.hva = uaddr + (fault.gfn - base_gfn) * kernel::PAGE_SIZE as u64;
-    let mut flags: u32 = bindings::FOLL_HWPOISON | bindings::FOLL_NOWAIT;
+    let flags: u32 = bindings::FOLL_HWPOISON | bindings::FOLL_NOWAIT;
 
     let mut nrpages: i64 = 0;
     let mut pages = MaybeUninit::<*mut bindings::page>::uninit();
@@ -479,14 +477,14 @@ fn make_noleaf_spte(pt: u64, flags: &EptMasks) -> u64 {
 fn rkvm_tdp_map(vcpu: &VcpuWrapper, fault: &mut RkvmPageFault) -> Result {
     let mut level: u64 = 4;
     let mut vcpuinner = vcpu.vcpuinner.lock();
-    let mut level_gfn = make_level_gfn(fault.gfn, level);
+    let level_gfn = make_level_gfn(fault.gfn, level);
     let mut level_gfn = match level_gfn {
         Ok(gfn) => gfn,
         Err(e) => return Err(e),
     };
     let mut pre_mmu_page = vcpuinner.mmu.root_mmu_page.clone();
     let flags = vcpuinner.mmu.spte_flags.clone();
-    let mut spte = rkvm_read_spte(pre_mmu_page.clone(), level_gfn, level);
+    let spte = rkvm_read_spte(pre_mmu_page.clone(), level_gfn, level);
     let mut spte = match spte {
         Err(err) => return Err(err),
         Ok(spte) => spte,
@@ -496,7 +494,7 @@ fn rkvm_tdp_map(vcpu: &VcpuWrapper, fault: &mut RkvmPageFault) -> Result {
             break;
         }
         if !vcpuinner.mmu.is_pte_present(spte) {
-            let mut mmu_page = vcpuinner.mmu.alloc_mmu_page(level - 1, level_gfn)?;
+            let mmu_page = vcpuinner.mmu.alloc_mmu_page(level - 1, level_gfn)?;
             let child_spt = match mmu_page.spt {
                 Some(spt) => spt,
                 None => return Err(Error::ENOMEM),

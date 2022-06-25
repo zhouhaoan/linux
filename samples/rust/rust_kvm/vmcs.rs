@@ -358,8 +358,8 @@ pub(crate) fn read_msr(msr: X86Msr) -> u64 {
     val
 }
 
-const X86_EFER_LME: u64 = 0x00000100; /* long mode enable */
-const X86_EFER_LMA: u64 = 0x00000400; /* long mode active */
+// const X86_EFER_LME: u64 = 0x00000100; /* long mode enable */
+// const X86_EFER_LMA: u64 = 0x00000400; /* long mode active */
 
 fn set_control(field: VmcsField, true_msr: u64, old_msr: u64, set: u32, clear: u32) -> Result<u32> {
     let allowed_0 = true_msr as u32;
@@ -386,7 +386,7 @@ fn set_control(field: VmcsField, true_msr: u64, old_msr: u64, set: u32, clear: u
     let unknown = flexible & !(set | clear);
     let defaults = unknown & old_msr as u32;
 
-    Ok((allowed_0 | defaults | set))
+    Ok(allowed_0 | defaults | set)
 }
 
 pub(crate) fn dump_vmcs() {
@@ -623,7 +623,7 @@ impl VmcsConfig {
         let mut cr0 = unsafe { bindings::native2_read_cr0() };
         cr0 &= !(Cr0::CR0_TS as u64);
         let cr3 = unsafe { bindings::native2_read_cr3() };
-        let cr4 = unsafe { bindings::cr4_read_shadow() };
+        // let cr4 = unsafe { bindings::cr4_read_shadow() };
         vmcs_write64(VmcsField::HOST_CR0, cr0);
         vmcs_write64(VmcsField::HOST_CR3, cr3);
         vmcs_write64(VmcsField::HOST_CR4, 0x7726e0);
@@ -774,12 +774,10 @@ impl VmcsConfig {
         let pat = read_msr(X86Msr::PAT);
         vmcs_write64(VmcsField::GUEST_IA32_PAT, 0x7040600070406);
         vmcs_write64(VmcsField::HOST_IA32_PAT, pat);
-        let mut efer = read_msr(X86Msr::EFER);
+        let efer = read_msr(X86Msr::EFER);
         vmcs_write64(VmcsField::HOST_IA32_EFER, efer);
-
-        pr_debug!(" host_efer = {:x} \n", efer);
-
-        efer &= !(X86_EFER_LME | X86_EFER_LMA);
+        pr_info!(" host_efer = {:x} \n", efer);
+        // efer &= !(X86_EFER_LME | X86_EFER_LMA);
         vmcs_write64(VmcsField::GUEST_IA32_EFER, /*efer*/ 0);
         vmcs_write32(VmcsField::CR3_TARGET_COUNT, 0);
         vmcs_write64(VmcsField::TSC_OFFSET, 0);

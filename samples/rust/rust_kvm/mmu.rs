@@ -143,9 +143,8 @@ impl RkvmMmu {
         unsafe {
             bindings::memset(ptr, 0, PAGE_SIZE as u64);
         }
-        let mut hpa = unsafe { bindings::rkvm_phy_address(hpa) };
-
-        pr_debug!("RkvmMmu hpa(phy) = {:x}--root_hpa \n", hpa);
+        let hpa = unsafe { bindings::rkvm_phy_address(hpa) };
+        pr_info!("RkvmMmu hpa(phy) = {:x}--root_hpa \n", hpa);
 
         let flags = EptMasks::new();
         let flags = match flags {
