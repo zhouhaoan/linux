@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0
-use super::{Guest, GuestWrapper};
+use super::GuestWrapper;
 use crate::exit::*;
 use crate::mmu::*;
 use crate::vmcs::*;
 use crate::vmstat::*;
-use crate::x86reg::*;
 use core::arch::global_asm;
 use core::pin::Pin;
 use kernel::bindings;
@@ -205,7 +204,7 @@ pub(crate) fn alloc_vmcs(revision_id: u32) -> Result<RkvmPage<RkvmVmcs>> {
         Ok(page) => page,
         Err(err) => return Err(err),
     };
-    let mut vmcs = RkvmPage::<RkvmVmcs>::new(page);
+    let vmcs = RkvmPage::<RkvmVmcs>::new(page);
     //unsafe { (*vmcs.ptr).revision_id = revision_id; }
     let ptr = vmcs.va as *mut u32;
     unsafe {
@@ -255,7 +254,7 @@ impl VcpuWrapper {
 
         let mmu = RkvmMmu::new();
 
-        let mut mmu = match mmu {
+        let mmu = match mmu {
             Ok(mmu) => mmu,
             Err(err) => return Err(err),
         };
@@ -305,7 +304,7 @@ impl VcpuWrapper {
                 let vector_info = vmcs_read32(VmcsField::IDT_VECTORING_INFO);
                 if vector_info & 0x80000000 != 0 {
                     pr_info!(" EPT_MISCONFIGURATION, vector_info: {:x} \n", vector_info);
-                    let mut vcpuinner = self.vcpuinner.lock();
+                    let vcpuinner = self.vcpuinner.lock();
                     let ptr = (vcpuinner.run.va + 8) as *mut u64;
                     unsafe {
                         (*ptr) = 2;
@@ -321,7 +320,7 @@ impl VcpuWrapper {
             }
             _ => {
                 pr_info!(" ## exit_reason = {:?} \n", exit_info.exit_reason);
-                let mut vcpuinner = self.vcpuinner.lock();
+                let vcpuinner = self.vcpuinner.lock();
                 let ptr = (vcpuinner.run.va + 8) as *mut u64;
                 unsafe {
                     (*ptr) = exit_info.exit_reason as u64;
@@ -350,7 +349,7 @@ impl VcpuWrapper {
             }
             let has_err_;
             {
-                let mut vcpuinner = self.vcpuinner.lock();
+                let vcpuinner = self.vcpuinner.lock();
 
                 let launched = vcpuinner.guest_state.launched;
 
@@ -406,7 +405,7 @@ impl VcpuWrapper {
                         return r.try_into().unwrap();
                     }
                 }
-                Err(err) => {
+                Err(_err) => {
                     let mut vcpuinner = self.vcpuinner.lock();
                     pr_info!("  vcpu run failed \n");
                     dump_vmcs();
@@ -449,7 +448,7 @@ impl VcpuWrapper {
     }
 
     pub(crate) fn get_regs(&self, regs: &mut RkvmRegs) {
-        let mut vcpuinner = self.vcpuinner.lock();
+        let vcpuinner = self.vcpuinner.lock();
         vmcs_load(vcpuinner.vmcs.va);
         //let guest_state = &vcpuinner.guest_state;
         regs.rax = vcpuinner.guest_state.rax;
@@ -473,7 +472,7 @@ impl VcpuWrapper {
     }
 
     pub(crate) fn set_sregs(&self, sregs: &RkvmSregs) {
-        let mut vcpuinner = self.vcpuinner.lock();
+        let vcpuinner = self.vcpuinner.lock();
         vmcs_load(vcpuinner.vmcs.va);
         let base = sregs.cs.base;
         let selector = sregs.cs.selector;
@@ -482,7 +481,7 @@ impl VcpuWrapper {
     }
 
     pub(crate) fn get_sregs(&self, sregs: &mut RkvmSregs) {
-        let mut vcpuinner = self.vcpuinner.lock();
+        let vcpuinner = self.vcpuinner.lock();
         vmcs_load(vcpuinner.vmcs.va);
         sregs.cs.base = vmcs_read64(VmcsField::GUEST_CS_BASE);
         sregs.cs.selector = vmcs_read16(VmcsField::GUEST_CS_SELECTOR);

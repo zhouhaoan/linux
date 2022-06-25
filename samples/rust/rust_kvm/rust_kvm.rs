@@ -24,10 +24,10 @@ mod vmcs;
 mod vmstat;
 mod x86reg;
 
-use crate::guest::{Guest, GuestWrapper};
+use crate::guest::GuestWrapper;
 use crate::vcpu::*;
 use crate::vmcs::*;
-use crate::x86reg::Cr4;
+
 
 module! {
     type: RustMiscdev,
@@ -35,6 +35,13 @@ module! {
     author: b"Peng Hao",
     description: b"Rust KVM VMX",
     license: b"GPL v2",
+    params: {
+        debug: bool {
+            default: true,
+            permissions: 0,
+            description: b"debug print control",
+        },
+    },
 }
 
 #[allow(dead_code)]
@@ -45,9 +52,6 @@ struct SharedStateInner {
 
 #[allow(dead_code)]
 struct RkvmState {
-    //use list
-    //guest: Option<Ref<Mutex<Guest>>>,
-    //vcpu: Option<Ref<Mutex<Vcpu>>>,
     state_changed: CondVar,
     inner: Mutex<SharedStateInner>,
 }
@@ -56,7 +60,7 @@ impl RkvmState {
     fn try_new() -> Result<Ref<Self>> {
         pr_info!("RkvmState try_new \n");
         let mut vmcsconf = VmcsConfig::new()?;
-        let ret = vmcsconf.setup_config()?;
+        let _ret = vmcsconf.setup_config()?;
         let mut state = Pin::from(UniqueRef::try_new(Self {
             // SAFETY: `condvar_init!` is called below.
             state_changed: unsafe { CondVar::new() },
@@ -110,9 +114,13 @@ struct RustMiscdev {
 }
 
 impl KernelModule for RustMiscdev {
-    fn init(name: &'static CStr, _module: &'static ThisModule) -> Result<Self> {
-        pr_info!("Rust kvm module (init)\n");
-
+    fn init(name: &'static CStr, module: &'static ThisModule) -> Result<Self> {
+        pr_info!("Rust kvm module (init) name={:?} \n", name);
+        {
+            let lock = module.kernel_param_lock();
+            pr_info!("Parameters:\n");
+            pr_info!("  debug:    {}\n", debug.read());
+        }
         let state = RkvmState::try_new()?;
         Ok(RustMiscdev {
             _dev: miscdev::Registration::new_pinned(fmt!("{name}"), state)?,
