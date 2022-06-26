@@ -319,11 +319,10 @@ impl VcpuWrapper {
                 return Ok(1);
             }
             _ => {
-                pr_info!(" ## exit_reason = {:?} \n", exit_info.exit_reason);
-                let vcpuinner = self.vcpuinner.lock();
-                let ptr = (vcpuinner.run.va + 8) as *mut u64;
+                pr_info!(" vmx exit_reason = {:?} \n", exit_info.exit_reason);
+                let mut vcpuinner = self.vcpuinner.lock();
                 unsafe {
-                    (*ptr) = exit_info.exit_reason as u64;
+                    (*(vcpuinner.run.ptr)).exit_reason = (RkvmUserExitReason::RKVM_EXIT_INTERNAL_ERROR) as u32;
                 }
                 return Err(Error::EINVAL);
             }
