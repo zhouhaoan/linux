@@ -374,7 +374,7 @@ impl VcpuWrapper {
                 dump_vmcs();
                 let host_rsp = vmcs_read64(VmcsField::HOST_RSP);
                 unsafe {
-                    (*(vcpuinner.run.ptr)).exit_reason = 0xdead;
+                    (*(vcpuinner.run.ptr)).exit_reason = (RkvmUserExitReason::RKVM_EXIT_FAIL_ENTRY) as u32;
                 } 
 
                 let ret = vmcs_read32(VmcsField::VM_INSTRUCTION_ERROR);
@@ -409,7 +409,7 @@ impl VcpuWrapper {
                     pr_info!("  vcpu run failed \n");
                     dump_vmcs();
                     unsafe {
-                        (*(vcpuinner.run.ptr)).exit_reason = (RkvmUserExitReason::RKVM_EXIT_FAIL_ENTRY) as u32;
+                        (*(vcpuinner.run.ptr)).exit_reason = (RkvmUserExitReason::RKVM_EXIT_INTERNAL_ERROR) as u32;
                     }
                     return -1;
                 }
