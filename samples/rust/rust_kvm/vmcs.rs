@@ -3,10 +3,10 @@
 //!
 //! See Intel SDM, Volume 3D, Appendix B.
 use crate::x86reg::*;
+use core::arch::asm;
 use core::arch::global_asm;
 use kernel::bindings;
 use kernel::prelude::*;
-//use kernel::sync::{Ref, UniqueRef};
 
 /// VM-execution, VM-exit, and VM-entry control fields
 
@@ -320,37 +320,101 @@ pub(crate) struct VmcsConfig {
     pub(crate) vmentry_ctrl: u32,
 }
 
-pub(crate) fn vmcs_write32(field: VmcsField, value: u32) {
+fn vmcs_write(field: VmcsField, value: u64) -> Result {
+    let field = field as u64;
     unsafe {
-        bindings::rkvm_vmcs_writel(field as u64, value as u64);
+        asm!("vmwrite {1}, {0};", in(reg) field, in(reg) value, options(att_syntax));
+    }
+    let rflags = unsafe { bindings::rkvm_rflags_read() };
+    if rflags & (RFlags::FLAGS_ZF as u64 + RFlags::FLAGS_CF as u64) != 0 {
+        return Err(Error::EINVAL);
+    }
+    Ok(())
+}
+
+pub(crate) fn vmcs_write32(field: VmcsField, value: u32) {
+    match vmcs_write(field, value as u64) {
+        Ok(()) => return,
+        Err(_) => {
+            pr_info!(
+                " vmcs write error: field={:?}, value = {:x} \n",
+                field,
+                value
+            );
+            return;
+        }
     }
 }
 
 pub(crate) fn vmcs_write64(field: VmcsField, value: u64) {
-    unsafe {
-        bindings::rkvm_vmcs_writel(field as u64, value);
+    match vmcs_write(field, value as u64) {
+        Ok(()) => return,
+        Err(_) => {
+            pr_info!(
+                " vmcs write error: field={:?}, value = {:x} \n",
+                field,
+                value
+            );
+            return;
+        }
     }
 }
 
 pub(crate) fn vmcs_write16(field: VmcsField, value: u16) {
-    unsafe {
-        bindings::rkvm_vmcs_writel(field as u64, value as u64);
+    match vmcs_write(field, value as u64) {
+        Ok(()) => return,
+        Err(_) => {
+            pr_info!(
+                " vmcs write error: field={:?}, value = {:x} \n",
+                field,
+                value
+            );
+            return;
+        }
     }
 }
 
+fn vmcs_read(field: VmcsField) -> Result<u64> {
+    let field = field as u64;
+    let mut value: u64 = 0;
+    unsafe {
+        asm!("vmread {0}, {1};", in(reg) field, out(reg) value, options(att_syntax));
+    }
+    let rflags = unsafe { bindings::rkvm_rflags_read() };
+    if rflags & (RFlags::FLAGS_ZF as u64 + RFlags::FLAGS_CF as u64) != 0 {
+        return Err(Error::EINVAL);
+    }
+    Ok((value))
+}
+
 pub(crate) fn vmcs_read32(field: VmcsField) -> u32 {
-    let ret = unsafe { bindings::rkvm_vmcs_readl(field as u64) };
-    ret as u32
+    match vmcs_read(field) {
+        Ok(val) => return val as u32,
+        Err(_) => {
+            pr_info!(" vmcs read error: field={:?} \n", field);
+            return 0;
+        }
+    }
 }
 
 pub(crate) fn vmcs_read64(field: VmcsField) -> u64 {
-    let ret = unsafe { bindings::rkvm_vmcs_readl(field as u64) };
-    ret as u64
+    match vmcs_read(field) {
+        Ok(val) => return val,
+        Err(_) => {
+            pr_info!(" vmcs read error: field={:?} \n", field);
+            return 0;
+        }
+    }
 }
 
 pub(crate) fn vmcs_read16(field: VmcsField) -> u16 {
-    let ret = unsafe { bindings::rkvm_vmcs_readl(field as u64) };
-    ret as u16
+    match vmcs_read(field) {
+        Ok(val) => return val as u16,
+        Err(_) => {
+            pr_info!(" vmcs read error: field={:?} \n", field);
+            return 0;
+        }
+    }
 }
 
 pub(crate) fn read_msr(msr: X86Msr) -> u64 {
@@ -360,7 +424,6 @@ pub(crate) fn read_msr(msr: X86Msr) -> u64 {
 
 // const X86_EFER_LME: u64 = 0x00000100; /* long mode enable */
 // const X86_EFER_LMA: u64 = 0x00000400; /* long mode active */
-
 fn set_control(field: VmcsField, true_msr: u64, old_msr: u64, set: u32, clear: u32) -> Result<u32> {
     let allowed_0 = true_msr as u32;
     let allowed_1 = (true_msr >> 32) as u32;
