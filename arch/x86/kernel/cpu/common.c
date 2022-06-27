@@ -516,45 +516,7 @@ void rkvm_write_msr(unsigned int msr, u32 low, u32 high)
 }
 EXPORT_SYMBOL(rkvm_write_msr);
 
-void rkvm_vmcs_writel(unsigned long field, unsigned long value)
-{
-	asm_volatile_goto("1: "  __stringify(vmwrite) " %1, %0\n\t"
-			  ".byte 0x2e\n\t"
-			  "jna %l[error]\n\t"
-			  _ASM_EXTABLE(1b, %l[fault])
-			  : : "r"(field), "rm"(value) : "cc" : error, fault);
-	return;
-error:
-	WARN_ONCE(1, "rkvm: vmwrite failed: field=%lx\n", field);
-	return;
-fault:
-	BUG();
-}
-EXPORT_SYMBOL(rkvm_vmcs_writel);
 
-unsigned long  rkvm_vmcs_readl(unsigned long field)
-{
-	unsigned long value;
-	asm_volatile_goto("1: vmread %[field], %[output]\n\t"
-			  "jna %l[do_fail]\n\t"
-
-			  _ASM_EXTABLE(1b, %l[do_exception])
-
-			  : [output] "=r" (value)
-			  : [field] "r" (field)
-			  : "cc"
-			  : do_fail, do_exception);
-
-	return value;
-do_fail:
-	WARN_ONCE(1, "rkvm: vmread failed: field=%lx\n", field);
-	pr_warn_ratelimited("kvm: vmread failed: field=%lx\n", field);
-	return 0;
-do_exception:
-	BUG();
-	return 0;
-}
-EXPORT_SYMBOL(rkvm_vmcs_readl);
 
 void rkvm_vmcs_load(unsigned long vmcs_phy)
 {

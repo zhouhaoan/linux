@@ -27,7 +27,7 @@ mod x86reg;
 use crate::guest::GuestWrapper;
 use crate::vcpu::*;
 use crate::vmcs::*;
-
+use crate::x86reg::*;
 
 module! {
     type: RustMiscdev,
