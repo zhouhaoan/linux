@@ -3,6 +3,7 @@
 //!
 //! See Intel SDM, Volume 3D, Appendix B.
 use crate::x86reg::*;
+use crate::{rkvm_debug, DEBUG_ON};
 use core::arch::asm;
 use core::arch::global_asm;
 use kernel::bindings;
@@ -336,7 +337,7 @@ pub(crate) fn vmcs_write32(field: VmcsField, value: u32) {
     match vmcs_write(field, value as u64) {
         Ok(()) => return,
         Err(_) => {
-            pr_info!(
+            pr_err!(
                 " vmcs write error: field={:?}, value = {:x} \n",
                 field,
                 value
@@ -350,7 +351,7 @@ pub(crate) fn vmcs_write64(field: VmcsField, value: u64) {
     match vmcs_write(field, value as u64) {
         Ok(()) => return,
         Err(_) => {
-            pr_info!(
+            pr_err!(
                 " vmcs write error: field={:?}, value = {:x} \n",
                 field,
                 value
@@ -364,7 +365,7 @@ pub(crate) fn vmcs_write16(field: VmcsField, value: u16) {
     match vmcs_write(field, value as u64) {
         Ok(()) => return,
         Err(_) => {
-            pr_info!(
+            pr_err!(
                 " vmcs write error: field={:?}, value = {:x} \n",
                 field,
                 value
@@ -391,7 +392,7 @@ pub(crate) fn vmcs_read32(field: VmcsField) -> u32 {
     match vmcs_read(field) {
         Ok(val) => return val as u32,
         Err(_) => {
-            pr_info!(" vmcs read error: field={:?} \n", field);
+            pr_err!(" vmcs read error: field={:?} \n", field);
             return 0;
         }
     }
@@ -401,7 +402,7 @@ pub(crate) fn vmcs_read64(field: VmcsField) -> u64 {
     match vmcs_read(field) {
         Ok(val) => return val,
         Err(_) => {
-            pr_info!(" vmcs read error: field={:?} \n", field);
+            pr_err!(" vmcs read error: field={:?} \n", field);
             return 0;
         }
     }
@@ -411,7 +412,7 @@ pub(crate) fn vmcs_read16(field: VmcsField) -> u16 {
     match vmcs_read(field) {
         Ok(val) => return val as u16,
         Err(_) => {
-            pr_info!(" vmcs read error: field={:?} \n", field);
+            pr_err!(" vmcs read error: field={:?} \n", field);
             return 0;
         }
     }
@@ -428,15 +429,15 @@ fn set_control(field: VmcsField, true_msr: u64, old_msr: u64, set: u32, clear: u
     let allowed_0 = true_msr as u32;
     let allowed_1 = (true_msr >> 32) as u32;
     if (allowed_1 & set) != set {
-        pr_info!("can not set vmcs controls {:?}", field);
+        pr_err!("can not set vmcs controls {:?}", field);
         return Err(Error::ENOTSUPP);
     }
     if (!allowed_0 & clear) != clear {
-        pr_info!("can not clear vmcs controls {:?}", field);
+        pr_err!("can not clear vmcs controls {:?}", field);
         return Err(Error::ENOTSUPP);
     }
     if (set & clear) != 0 {
-        pr_info!("can not set and clear the same vmcs controls {:?}", field);
+        pr_err!("can not set and clear the same vmcs controls {:?}", field);
         return Err(Error::EINVAL);
     }
 
@@ -451,6 +452,7 @@ fn set_control(field: VmcsField, true_msr: u64, old_msr: u64, set: u32, clear: u
 }
 
 pub(crate) fn dump_vmcs() {
+    pr_info!(" *************************************************************\n");
     pr_info!(" VMCS Host: \n");
     pr_info!(" cr0: {:x} \n", vmcs_read64(VmcsField::HOST_CR0));
     pr_info!(" cr3: {:x} \n", vmcs_read64(VmcsField::HOST_CR3));
@@ -623,7 +625,7 @@ impl VmcsConfig {
         let low: u32 = v as u32;
         let high: u32 = (v >> 32) as u32;
         if ((high >> 18) & 15) != 6 {
-            pr_info!(" vmcs access mem type is not WB, high={:x} \n", high);
+            rkvm_debug!(" vmcs access mem type is not WB, high={:x} \n", high);
         }
         self.size = high & 0x1fff;
         self.basic_cap = high & !0x1fff;
@@ -669,7 +671,7 @@ impl VmcsConfig {
             0,
         )?;
 
-        pr_info!(
+        rkvm_debug!(
             " setup pin={:x},cpu={:x}, cpu2={:x},exit={:x}, entry={:x} \n",
             self.pin_based_exec_ctrl,
             self.cpu_based_exec_ctrl,
@@ -709,8 +711,8 @@ impl VmcsConfig {
 
         let gdt = unsafe { bindings::rkvm_get_current_gdt_ro() };
         let tss = unsafe { bindings::rkvm_get_current_tss_ro() };
-        pr_info!(
-            "### get gdt={:x}, tss={:x}, fs={:x}, gs={:x}  \n",
+        rkvm_debug!(
+            "get gdt={:x}, tss={:x}, fs={:x}, gs={:x}  \n",
             gdt,
             tss,
             fs,
@@ -731,17 +733,19 @@ impl VmcsConfig {
             VmcsField::PIN_BASED_VM_EXEC_CONTROL,
             self.pin_based_exec_ctrl,
         );
-        pr_info!("  pin_based = {:x} \n", self.pin_based_exec_ctrl);
+        rkvm_debug!("  pin_based = {:x} \n", self.pin_based_exec_ctrl);
+        
         vmcs_write32(
             VmcsField::CPU_BASED_VM_EXEC_CONTROL,
             self.cpu_based_exec_ctrl,
         );
-        pr_info!("  cpu_based = {:x} \n", self.cpu_based_exec_ctrl);
+        rkvm_debug!("  cpu_based = {:x} \n", self.cpu_based_exec_ctrl);
+        
         vmcs_write32(
             VmcsField::SECONDARY_VM_EXEC_CONTROL,
             self.cpu_based_2nd_exec_ctrl,
         );
-        pr_info!("  cpu_2nd_based = {:x} \n", self.cpu_based_2nd_exec_ctrl);
+        rkvm_debug!("  cpu_2nd_based = {:x} \n", self.cpu_based_2nd_exec_ctrl);
 
         vmcs_write32(VmcsField::EXCEPTION_BITMAP, 0x60042);
         vmcs_write32(VmcsField::PAGE_FAULT_ERROR_CODE_MASK, 0);
@@ -750,8 +754,10 @@ impl VmcsConfig {
         self.set_host_constant_vmcs();
         vmcs_write32(VmcsField::VM_EXIT_CONTROLS, self.vmexit_ctrl);
         vmcs_write32(VmcsField::VM_ENTRY_CONTROLS, self.vmentry_ctrl);
-        pr_info!("  vmexit_ctrl = {:x} \n", self.vmexit_ctrl);
-        pr_info!("  vmentry_ctrl = {:x} \n", self.vmentry_ctrl);
+
+        rkvm_debug!("  vmexit_ctrl = {:x} \n", self.vmexit_ctrl);
+        rkvm_debug!("  vmentry_ctrl = {:x} \n", self.vmentry_ctrl);
+
         vmcs_write32(VmcsField::VM_ENTRY_MSR_LOAD_COUNT, 0);
         vmcs_write32(VmcsField::VM_ENTRY_INTR_INFO_FIELD, 0);
         vmcs_write32(VmcsField::VM_EXIT_MSR_LOAD_COUNT, 0);
@@ -828,7 +834,8 @@ impl VmcsConfig {
         vmcs_write64(VmcsField::HOST_IA32_PAT, pat);
         let efer = read_msr(X86Msr::EFER);
         vmcs_write64(VmcsField::HOST_IA32_EFER, efer);
-        pr_info!(" host_efer = {:x} \n", efer);
+
+        rkvm_debug!(" host_efer = {:x} \n", efer);
         // efer &= !(X86_EFER_LME | X86_EFER_LMA);
         vmcs_write64(VmcsField::GUEST_IA32_EFER, /*efer*/ 0);
         vmcs_write32(VmcsField::CR3_TARGET_COUNT, 0);
@@ -838,7 +845,7 @@ impl VmcsConfig {
         vmcs_write64(VmcsField::GUEST_PENDING_DBG_EXCEPTIONS, 0);
 
         //vmcs_write16(VmcsField::VIRTUAL_PROCESSOR_ID, 1);
-        pr_info!(" ### vcpu_vmcs_init \n");
+        rkvm_debug!(" vcpu_vmcs_init \n");
     }
 } //impl
 
