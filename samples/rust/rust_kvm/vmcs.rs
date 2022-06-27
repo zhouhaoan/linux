@@ -321,16 +321,20 @@ pub(crate) struct VmcsConfig {
     pub(crate) vmentry_ctrl: u32,
 }
 
-fn vmcs_write(field: VmcsField, value: u64) -> Result {
-    let field = field as u64;
-    unsafe {
-        asm!("vmwrite {1}, {0};", in(reg) field, in(reg) value, options(att_syntax));
-    }
+fn vmcs_status() -> Result {
     let rflags = unsafe { bindings::rkvm_rflags_read() };
     if rflags & (RFlags::FLAGS_ZF as u64 + RFlags::FLAGS_CF as u64) != 0 {
         return Err(Error::EINVAL);
     }
     Ok(())
+}
+
+fn vmcs_write(field: VmcsField, value: u64) -> Result {
+    let field = field as u64;
+    unsafe {
+        asm!("vmwrite {1}, {0};", in(reg) field, in(reg) value, options(att_syntax));
+    }
+    vmcs_status()
 }
 
 pub(crate) fn vmcs_write32(field: VmcsField, value: u32) {
@@ -381,11 +385,10 @@ fn vmcs_read(field: VmcsField) -> Result<u64> {
     unsafe {
         asm!("vmread {0}, {1};", in(reg) field, out(reg) value, options(att_syntax));
     }
-    let rflags = unsafe { bindings::rkvm_rflags_read() };
-    if rflags & (RFlags::FLAGS_ZF as u64 + RFlags::FLAGS_CF as u64) != 0 {
-        return Err(Error::EINVAL);
+    match vmcs_status() {
+        Ok(()) => return Ok((value)),
+        Err(e) => return Err(e),
     }
-    Ok(value)
 }
 
 pub(crate) fn vmcs_read32(field: VmcsField) -> u32 {
@@ -416,6 +419,20 @@ pub(crate) fn vmcs_read16(field: VmcsField) -> u16 {
             return 0;
         }
     }
+}
+
+pub(crate) fn vmclear(addr: u64) -> Result {
+    unsafe {
+        asm!("vmclear ({0})", in(reg) &addr, options(att_syntax));
+    }
+    vmcs_status()
+}
+
+pub(crate) fn vmptrld(addr: u64) -> Result {
+    unsafe {
+        asm!("vmptrld ({0})", in(reg) &addr, options(att_syntax));
+    }
+    vmcs_status()
 }
 
 pub(crate) fn read_msr(msr: X86Msr) -> u64 {

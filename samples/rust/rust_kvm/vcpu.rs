@@ -223,14 +223,24 @@ fn vmcs_load(va: u64) {
         if phy == 0 {
             pr_err!(" vmcs_load failed \n");
         }
-        bindings::rkvm_vmcs_load(phy);
+    }
+    match vmptrld(phy) {
+        Ok(()) => return,
+        Err(_) => {
+            pr_info!(" vmptrld failed phy={:x} \n", phy);
+        }
     }
 }
 
 fn vmcs_clear(va: u64) {
     unsafe {
         let phy = bindings::rkvm_phy_address(va);
-        bindings::rkvm_vmcs_clear(phy);
+    }
+    match vmclear(phy) {
+        Ok(()) => return,
+        Err(_) => {
+            pr_info!(" vmclear failed phy={:x} \n", phy);
+        }
     }
 }
 

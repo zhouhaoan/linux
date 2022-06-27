@@ -516,24 +516,6 @@ void rkvm_write_msr(unsigned int msr, u32 low, u32 high)
 }
 EXPORT_SYMBOL(rkvm_write_msr);
 
-
-
-void rkvm_vmcs_load(unsigned long vmcs_phy)
-{
-	asm_volatile_goto("1: vmptrld %0\n\t"
-			  ".byte 0x2e\n\t" /* branch not taken hint */
-			  "jna %l[error]\n\t"
-			  _ASM_EXTABLE(1b, %l[fault])
-			  : : "m"(vmcs_phy) : "cc" : error, fault);
-	return;
-error:
-	WARN_ONCE(1, "rkvm: vmptrld failed: vmcs_phy=%lx \n", vmcs_phy);
-	return;
-fault:
-	BUG();
-}
-EXPORT_SYMBOL(rkvm_vmcs_load);
-
 void rkvm_invept(unsigned long ext, unsigned long  eptp, unsigned long gpa)
 {
 	struct {
@@ -551,22 +533,6 @@ fault:
 	BUG();
 }
 EXPORT_SYMBOL(rkvm_invept);
-
-void rkvm_vmcs_clear(unsigned long vmcs_phy)
-{
-	asm_volatile_goto("1: vmclear %0\n\t"
-			  ".byte 0x2e\n\t" /* branch not taken hint */
-			  "jna %l[error]\n\t"
-			  _ASM_EXTABLE(1b, %l[fault])
-			  : : "m"(vmcs_phy) : "cc" : error, fault);
-	return;
-error:
-	WARN_ONCE(1, "rkvm: vmclear failed: vmcs_phy=%lx \n", vmcs_phy);
-	return;
-fault:
-	BUG();
-}
-EXPORT_SYMBOL(rkvm_vmcs_clear);
 
 void rkvm_irq_disable(void)
 {
