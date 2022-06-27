@@ -81,6 +81,6 @@ impl GuestWrapper {
 
 impl Drop for GuestWrapper {
     fn drop(&mut self) {
-        rkvm_debug!(" guest droped \n");
+        pr_info!(" guest droped \n");
     }
 }

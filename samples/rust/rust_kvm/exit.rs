@@ -384,7 +384,7 @@ fn rkvm_pagefault(vcpu: &VcpuWrapper, fault: &mut RkvmPageFault) -> Result {
 
 fn rkvm_read_spte(mmu_page: Ref<RkvmMmuPage>, gfn: u64, level: u64) -> Result<u64> {
     if level < 1 {
-        rkvm_debug!(" rkvm_read_spte level={:?} < 1 \n", level);
+        pr_err!(" rkvm_read_spte level={:?} < 1 \n", level);
 
         return Err(Error::EINVAL);
     }
@@ -400,7 +400,7 @@ fn rkvm_read_spte(mmu_page: Ref<RkvmMmuPage>, gfn: u64, level: u64) -> Result<u6
 
 fn rkvm_write_spte(mmu_page: Ref<RkvmMmuPage>, new_spte: u64, gfn: u64, level: u64) -> Result {
     if level < 1 {
-        rkvm_debug!(" rkvm_write_spte level={:?} < 1 \n", level);
+        pr_err!(" rkvm_write_spte level={:?} < 1 \n", level);
 
         return Err(Error::EINVAL);
     }
@@ -418,7 +418,7 @@ fn make_level_gfn(gfn: u64, level: u64) -> Result<u64> {
         return Ok(0);
     }
     if level < 1 {
-        rkvm_debug!(" make_level_gfn: level={:?} < 1 \n", level);
+        pr_err!(" make_level_gfn: level={:?} < 1 \n", level);
 
         return Err(Error::EINVAL);
     }

@@ -221,7 +221,7 @@ fn vmcs_load(va: u64) {
     unsafe {
         let phy = bindings::rkvm_phy_address(va);
         if phy == 0 {
-            rkvm_debug!(" vmcs_load failed \n");
+            pr_err!(" vmcs_load failed \n");
         }
         bindings::rkvm_vmcs_load(phy);
     }
@@ -389,7 +389,7 @@ impl VcpuWrapper {
                 let ret = vmcs_read32(VmcsField::VM_INSTRUCTION_ERROR);
                 let rflags = unsafe { bindings::rkvm_rflags_read() };
 
-                rkvm_debug!(
+                pr_err!(
                     "run loop after _vmx_vcpu_run, rflags={:x},ret={:x} \n",
                     rflags,
                     ret
@@ -419,7 +419,7 @@ impl VcpuWrapper {
                 }
                 Err(_err) => {
                     let mut vcpuinner = self.vcpuinner.lock();
-                    rkvm_debug!("  vcpu run failed \n");
+                    pr_err!("  vcpu run failed \n");
                     dump_vmcs();
                     unsafe {
                         (*(vcpuinner.run.ptr)).exit_reason = (RkvmUserExitReason::RKVM_EXIT_INTERNAL_ERROR) as u32;
@@ -504,7 +504,7 @@ impl VcpuWrapper {
 
 impl Drop for VcpuWrapper {
     fn drop(&mut self) {
-        rkvm_debug!(" vcpu droped \n");
+        pr_info!(" vcpu droped \n");
     }
 }
 

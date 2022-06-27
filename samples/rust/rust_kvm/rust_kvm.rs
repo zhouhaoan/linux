@@ -166,7 +166,7 @@ fn rkvm_set_vmxon(state: &RkvmState) -> Result<u32> {
     rkvm_debug!("Rust kvm :vmxe {:}\n", vmxe);
 
     if vmxe > 0 {
-        rkvm_debug!("Rust kvm: vmx has been enabled\n");
+        pr_err!("Rust kvm: vmx has been enabled\n");
 
         return Err(Error::ENOENT);
     }

@@ -429,17 +429,17 @@ fn set_control(field: VmcsField, true_msr: u64, old_msr: u64, set: u32, clear: u
     let allowed_0 = true_msr as u32;
     let allowed_1 = (true_msr >> 32) as u32;
     if (allowed_1 & set) != set {
-        rkvm_debug!("can not set vmcs controls {:?}", field);
+        pr_err!("can not set vmcs controls {:?}", field);
 
         return Err(Error::ENOTSUPP);
     }
     if (!allowed_0 & clear) != clear {
-        rkvm_debug!("can not clear vmcs controls {:?}", field);
+        pr_err!("can not clear vmcs controls {:?}", field);
 
         return Err(Error::ENOTSUPP);
     }
     if (set & clear) != 0 {
-        rkvm_debug!("can not set and clear the same vmcs controls {:?}", field);
+        pr_err!("can not set and clear the same vmcs controls {:?}", field);
         return Err(Error::EINVAL);
     }
 
