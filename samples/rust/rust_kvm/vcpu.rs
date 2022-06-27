@@ -218,8 +218,9 @@ pub(crate) fn alloc_vmcs(revision_id: u32) -> Result<RkvmPage<RkvmVmcs>> {
 }
 
 fn vmcs_load(va: u64) {
+    let mut phy: u64;
     unsafe {
-        let phy = bindings::rkvm_phy_address(va);
+        phy = bindings::rkvm_phy_address(va);
         if phy == 0 {
             pr_err!(" vmcs_load failed \n");
         }
@@ -233,8 +234,9 @@ fn vmcs_load(va: u64) {
 }
 
 fn vmcs_clear(va: u64) {
+    let mut phy: u64;
     unsafe {
-        let phy = bindings::rkvm_phy_address(va);
+        phy = bindings::rkvm_phy_address(va);
     }
     match vmclear(phy) {
         Ok(()) => return,
