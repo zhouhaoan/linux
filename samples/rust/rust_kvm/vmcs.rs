@@ -385,7 +385,7 @@ fn vmcs_read(field: VmcsField) -> Result<u64> {
     if rflags & (RFlags::FLAGS_ZF as u64 + RFlags::FLAGS_CF as u64) != 0 {
         return Err(Error::EINVAL);
     }
-    Ok((value))
+    Ok(value)
 }
 
 pub(crate) fn vmcs_read32(field: VmcsField) -> u32 {

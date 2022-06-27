@@ -113,6 +113,7 @@ impl FileOperations for KVM {
 
 static mut DEBUG_ON: bool = false;
 #[macro_export]
+/// debug print switch
 macro_rules! rkvm_debug (
     ($($arg:tt)*) => (
         unsafe {
@@ -209,7 +210,6 @@ impl IoctlHandler for RkvmState {
                     pr_err!("Rkvm: IOCTL_KVM_CREATE_VM failed\n");
                     return Err(error);
                 }
-                //unsafe { bindings::rkvm_invept(2, 0, 0) };
                 let guest = GuestWrapper::new();
 
                 let guest = match guest {
