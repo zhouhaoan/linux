@@ -66,7 +66,7 @@ impl GuestWrapper {
         guestinner.memslot.userspace_addr = uaddr;
         guestinner.memslot.base_gfn = gpa >> 12;
         guestinner.memslot.npages = npages;
-        
+
         rkvm_debug!(
             " add_memory_region user={:x}, gpa = {:x}, npages={:x} \n",
             uaddr,

@@ -144,7 +144,7 @@ pub(crate) struct Pio {
 #[allow(dead_code)]
 pub(crate) struct RkvmRun {
     /* in */
-    pub(crate) runin: u64,    
+    pub(crate) runin: u64,
     /* out */
     pub(crate) exit_reason: u32,
     pub(crate) ready_for_interrupt_injection: u8,
@@ -213,7 +213,7 @@ pub(crate) fn alloc_vmcs(revision_id: u32) -> Result<RkvmPage<RkvmVmcs>> {
     }
 
     rkvm_debug!("Rust kvm: vmcs={:x},revision={:?} \n", vmcs.va, *ptr,);
-    
+
     Ok(vmcs)
 }
 
@@ -307,7 +307,7 @@ impl VcpuWrapper {
                 let vector_info = vmcs_read32(VmcsField::IDT_VECTORING_INFO);
                 if vector_info & 0x80000000 != 0 {
                     pr_err!(" EPT_MISCONFIGURATION, vector_info: {:x} \n", vector_info);
-                    
+
                     let vcpuinner = self.vcpuinner.lock();
                     let ptr = (vcpuinner.run.va + 8) as *mut u64;
                     unsafe {
@@ -320,14 +320,15 @@ impl VcpuWrapper {
             ExitReason::EXTERNAL_INTERRUPT => {
                 let intr_info = vmcs_read32(VmcsField::IDT_VECTORING_INFO);
                 rkvm_debug!(" interrupt: {:x} \n", intr_info);
-                
+
                 return Ok(1);
             }
             _ => {
                 pr_err!(" vmx exit_reason = {:?} \n", exit_info.exit_reason);
                 let mut vcpuinner = self.vcpuinner.lock();
                 unsafe {
-                    (*(vcpuinner.run.ptr)).exit_reason = (RkvmUserExitReason::RKVM_EXIT_INTERNAL_ERROR) as u32;
+                    (*(vcpuinner.run.ptr)).exit_reason =
+                        (RkvmUserExitReason::RKVM_EXIT_INTERNAL_ERROR) as u32;
                 }
                 return Err(Error::EINVAL);
             }
@@ -381,8 +382,9 @@ impl VcpuWrapper {
                 dump_vmcs();
                 let host_rsp = vmcs_read64(VmcsField::HOST_RSP);
                 unsafe {
-                    (*(vcpuinner.run.ptr)).exit_reason = (RkvmUserExitReason::RKVM_EXIT_FAIL_ENTRY) as u32;
-                } 
+                    (*(vcpuinner.run.ptr)).exit_reason =
+                        (RkvmUserExitReason::RKVM_EXIT_FAIL_ENTRY) as u32;
+                }
 
                 let ret = vmcs_read32(VmcsField::VM_INSTRUCTION_ERROR);
                 let rflags = unsafe { bindings::rkvm_rflags_read() };
@@ -417,7 +419,8 @@ impl VcpuWrapper {
                     pr_err!("  vcpu run failed \n");
                     dump_vmcs();
                     unsafe {
-                        (*(vcpuinner.run.ptr)).exit_reason = (RkvmUserExitReason::RKVM_EXIT_INTERNAL_ERROR) as u32;
+                        (*(vcpuinner.run.ptr)).exit_reason =
+                            (RkvmUserExitReason::RKVM_EXIT_INTERNAL_ERROR) as u32;
                     }
                     return -1;
                 }
@@ -446,13 +449,13 @@ impl VcpuWrapper {
         vcpuinner.guest_state.r15 = regs.r15;
         vcpuinner.guest_state.rip = regs.rip;
         vmcs_write64(VmcsField::GUEST_RIP, regs.rip);
-        
+
         rkvm_debug!(
             " set_regs guest_rip = {:x}, state_rax = {:x}\n",
             regs.rip,
             vcpuinner.guest_state.rax,
         );
-        
+
         vmcs_write64(VmcsField::GUEST_RFLAGS, regs.rflags);
     }
 

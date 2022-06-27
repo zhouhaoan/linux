@@ -378,13 +378,13 @@ fn rkvm_pagefault(vcpu: &VcpuWrapper, fault: &mut RkvmPageFault) -> Result {
     }
 
     rkvm_debug!("pagefault: pfn={:?} \n", fault.pfn);
-    
+
     Ok(())
 }
 
 fn rkvm_read_spte(mmu_page: Ref<RkvmMmuPage>, gfn: u64, level: u64) -> Result<u64> {
     if level < 1 {
-        pr_err!(" rkvm_read_spte level={:?} < 1 \n", level);       
+        pr_err!(" rkvm_read_spte level={:?} < 1 \n", level);
         return Err(Error::EINVAL);
     }
     let offset: usize = SHADOW_PT_INDEX!((gfn << bindings::PAGE_SHIFT), level) as usize;
@@ -499,14 +499,14 @@ fn rkvm_tdp_map(vcpu: &VcpuWrapper, fault: &mut RkvmPageFault) -> Result {
             };
             spte = make_noleaf_spte(child_spt, &flags);
             rkvm_write_spte(pre_mmu_page.clone(), spte, level_gfn, level - 1);
-            
+
             rkvm_debug!(
                 "rkvm_tdp_map level={:?}, gfn={:x}, spte={:x} \n",
                 level,
                 level_gfn,
                 spte
             );
-            
+
             pre_mmu_page = mmu_page;
         }
         level -= 1;
@@ -526,7 +526,7 @@ fn rkvm_tdp_map(vcpu: &VcpuWrapper, fault: &mut RkvmPageFault) -> Result {
     if level == fault.goal_level {
         //make pte
         spte = make_spte(fault, &flags);
-        
+
         rkvm_debug!(
             "rkvm_tdp_map level={:?}, gfn={:x}, spte={:x} \n",
             level,
@@ -541,7 +541,7 @@ fn rkvm_tdp_map(vcpu: &VcpuWrapper, fault: &mut RkvmPageFault) -> Result {
 
 pub(crate) fn handle_ept_violation(exit_info: &ExitInfo, vcpu: &VcpuWrapper) -> Result<u64> {
     rkvm_debug!("Enter handle EPT violation\n");
-    
+
     let mut error_code: u64 = 0;
     let gpa = vmcs_read64(VmcsField::GUEST_PHYSICAL_ADDRESS);
     if (exit_info.exit_qualification & EptViolationMask::EPT_VIOLATION_ACC_READ as u64) != 0 {

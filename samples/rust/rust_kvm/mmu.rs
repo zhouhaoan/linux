@@ -138,13 +138,13 @@ impl RkvmMmu {
         };
 
         rkvm_debug!("RkvmMmu hpa(va) = {:x} \n", hpa);
-       
+
         let ptr = hpa as *mut c_void;
         unsafe {
             bindings::memset(ptr, 0, PAGE_SIZE as u64);
         }
         let hpa = unsafe { bindings::rkvm_phy_address(hpa) };
-        
+
         rkvm_debug!("RkvmMmu hpa(phy) = {:x}--root_hpa \n", hpa);
 
         let flags = EptMasks::new();
@@ -152,7 +152,11 @@ impl RkvmMmu {
             Ok(flags) => flags,
             Err(err) => return Err(err),
         };
-        rkvm_debug!("ad_disabled = {}, ecex_only = {}", flags.ad_disabled, flags.has_exec_only);
+        rkvm_debug!(
+            "ad_disabled = {}, ecex_only = {}",
+            flags.ad_disabled,
+            flags.has_exec_only
+        );
 
         let mut mmu = UniqueRef::try_new(Self {
             root_hpa: hpa, //physical addr
@@ -191,12 +195,12 @@ impl RkvmMmu {
 
     pub(crate) fn init_mmu_root(&mut self) -> Result {
         rkvm_debug!(" init_mmu_root \n");
-        
+
         let eptp = self.make_eptp();
         vmcs_write64(VmcsField::EPT_POINTER, eptp);
-        
+
         rkvm_debug!("hpa= {:x}, eptp = {:x} \n", self.root_hpa, eptp);
-        
+
         unsafe { bindings::rkvm_invept(1, eptp, 0) };
 
         Ok(())

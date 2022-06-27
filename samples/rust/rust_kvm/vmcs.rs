@@ -734,13 +734,13 @@ impl VmcsConfig {
             self.pin_based_exec_ctrl,
         );
         rkvm_debug!("  pin_based = {:x} \n", self.pin_based_exec_ctrl);
-        
+
         vmcs_write32(
             VmcsField::CPU_BASED_VM_EXEC_CONTROL,
             self.cpu_based_exec_ctrl,
         );
         rkvm_debug!("  cpu_based = {:x} \n", self.cpu_based_exec_ctrl);
-        
+
         vmcs_write32(
             VmcsField::SECONDARY_VM_EXEC_CONTROL,
             self.cpu_based_2nd_exec_ctrl,
