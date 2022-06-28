@@ -435,6 +435,37 @@ pub(crate) fn vmptrld(addr: u64) -> Result {
     vmcs_status()
 }
 
+#[repr(u64)]
+#[derive(Debug)]
+#[allow(dead_code)]
+pub(crate) enum InvEptType {
+    /// The logical processor invalidates all mappings associated with bits
+    /// 51:12 of the EPT pointer (EPTP) specified in the INVEPT descriptor.
+    /// It may invalidate other mappings as well.
+    Single = 1,
+
+    /// The logical processor invalidates mappings associated with all EPTPs.
+    Global = 2,
+}
+
+#[derive(Debug, Clone, Copy)]
+#[repr(C, packed)]
+struct InvEptDesc {
+    eptp: u64,
+    reserved: u64,
+}
+
+pub(crate) fn invept(invalidation: InvEptType, eptp: u64) -> Result {
+   let descriptor = InvEptDesc { eptp, reserved: 0 };
+   unsafe {
+       asm!("invept ({0}), {1}",
+       in(reg) &descriptor,
+       in(reg) invalidation as u64,
+       options(att_syntax));
+   }
+   vmcs_status()
+}
+
 pub(crate) fn read_msr(msr: X86Msr) -> u64 {
     let val: u64 = unsafe { bindings::rkvm_read_msr(msr as u32) };
     val

@@ -573,6 +573,6 @@ pub(crate) fn handle_ept_violation(exit_info: &ExitInfo, vcpu: &VcpuWrapper) -> 
         Ok(r) => r,
         Err(e) => return Err(e),
     };
-    unsafe { bindings::rkvm_invept(2, 0, 0) };
+    invept(InvEptType::Global, 0);
     Ok(1)
 }

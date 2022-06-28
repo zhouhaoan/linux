@@ -94,7 +94,6 @@ void rkvm_load_ldt(unsigned short sel);
 unsigned long long rkvm_read_msr(unsigned int msr);
 void rkvm_write_msr(unsigned int msr, u32 low, u32 high);
 u64 rkvm_rflags_read(void);
-void rkvm_invept(unsigned long ext, unsigned long  eptp, unsigned long gpa);
 void rkvm_irq_disable(void);
 void rkvm_irq_enable(void);
 

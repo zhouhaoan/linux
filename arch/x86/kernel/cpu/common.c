@@ -516,24 +516,6 @@ void rkvm_write_msr(unsigned int msr, u32 low, u32 high)
 }
 EXPORT_SYMBOL(rkvm_write_msr);
 
-void rkvm_invept(unsigned long ext, unsigned long  eptp, unsigned long gpa)
-{
-	struct {
-		u64 eptp, gpa;
-	} operand = {eptp, gpa};
-	asm_volatile_goto("1: invept %1, %0\n\t"
-			  ".byte 0x2e\n\t"
-			  "jna %l[error]\n\t"
-			  _ASM_EXTABLE(1b, %l[fault])
-			  : : "r"(ext), "m"(operand) : "cc" : error, fault);
-error:
-	WARN_ONCE(1, "rkvm: invept failed: eptp=ox%lx, gpa=0x%lx \n", eptp, gpa);
-	return;
-fault:
-	BUG();
-}
-EXPORT_SYMBOL(rkvm_invept);
-
 void rkvm_irq_disable(void)
 {
        asm volatile("cli": : :"memory");
