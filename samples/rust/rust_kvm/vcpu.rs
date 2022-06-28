@@ -224,11 +224,8 @@ fn vmcs_load(va: u64) {
     if phy == 0 {
        pr_err!(" vmcs_load failed \n");
     }
-    match vmptrld(phy) {
-        Ok(()) => return,
-        Err(_) => {
-            pr_info!(" vmptrld failed phy={:x} \n", phy);
-        }
+    if vmptrld(phy).is_err() {
+       pr_info!(" vmptrld failed phy={:x} \n", phy);
     }
 }
 
@@ -236,11 +233,8 @@ fn vmcs_clear(va: u64) {
     let phy = unsafe {
         bindings::rkvm_phy_address(va)
     };
-    match vmclear(phy) {
-        Ok(()) => return,
-        Err(_) => {
-            pr_info!(" vmclear failed phy={:x} \n", phy);
-        }
+    if vmclear(phy).is_err() {
+       pr_info!(" vmclear failed phy={:x} \n", phy);
     }
 }
 

@@ -475,18 +475,10 @@ fn make_noleaf_spte(pt: u64, flags: &EptMasks) -> u64 {
 fn rkvm_tdp_map(vcpu: &VcpuWrapper, fault: &mut RkvmPageFault) -> Result {
     let mut level: u64 = 4;
     let mut vcpuinner = vcpu.vcpuinner.lock();
-    let level_gfn = make_level_gfn(fault.gfn, level);
-    let mut level_gfn = match level_gfn {
-        Ok(gfn) => gfn,
-        Err(e) => return Err(e),
-    };
+    let mut level_gfn = make_level_gfn(fault.gfn, level)?;
     let mut pre_mmu_page = vcpuinner.mmu.root_mmu_page.clone();
     let flags = vcpuinner.mmu.spte_flags.clone();
-    let spte = rkvm_read_spte(pre_mmu_page.clone(), level_gfn, level);
-    let mut spte = match spte {
-        Err(err) => return Err(err),
-        Ok(spte) => spte,
-    };
+    let mut spte = rkvm_read_spte(pre_mmu_page.clone(), level_gfn, level)?;
     while level > 0 {
         if level == fault.goal_level {
             break;
@@ -510,16 +502,8 @@ fn rkvm_tdp_map(vcpu: &VcpuWrapper, fault: &mut RkvmPageFault) -> Result {
             pre_mmu_page = mmu_page;
         }
         level -= 1;
-        let tmp = make_level_gfn(fault.gfn, level);
-        level_gfn = match tmp {
-            Ok(gfn) => gfn,
-            Err(e) => return Err(e),
-        };
-        let tmp = rkvm_read_spte(pre_mmu_page.clone(), level_gfn, level);
-        spte = match tmp {
-            Ok(spte) => spte,
-            Err(e) => return Err(e),
-        };
+        let level_gfn = make_level_gfn(fault.gfn, level)?;
+        spte = rkvm_read_spte(pre_mmu_page.clone(), level_gfn, level)?;
     } //while
       // handle leaf pte
 
