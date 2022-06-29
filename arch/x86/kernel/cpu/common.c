@@ -504,18 +504,6 @@ u64 rkvm_rflags_read()
 }
 EXPORT_SYMBOL(rkvm_rflags_read);
 
-unsigned long long rkvm_read_msr(unsigned int msr)
-{
-	return native_read_msr(msr);
-}
-EXPORT_SYMBOL(rkvm_read_msr);
-
-void rkvm_write_msr(unsigned int msr, u32 low, u32 high)
-{
-	native_write_msr(msr, low, high);
-}
-EXPORT_SYMBOL(rkvm_write_msr);
-
 void rkvm_irq_disable(void)
 {
        asm volatile("cli": : :"memory");

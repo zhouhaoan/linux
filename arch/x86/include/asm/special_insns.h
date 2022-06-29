@@ -91,8 +91,6 @@ unsigned long rkvm_rdfsbase(void);
 unsigned short rkvm_read_ldt(void);
 void rkvm_load_ldt(unsigned short sel);
 
-unsigned long long rkvm_read_msr(unsigned int msr);
-void rkvm_write_msr(unsigned int msr, u32 low, u32 high);
 u64 rkvm_rflags_read(void);
 void rkvm_irq_disable(void);
 void rkvm_irq_enable(void);

@@ -456,19 +456,30 @@ struct InvEptDesc {
 }
 
 pub(crate) fn invept(invalidation: InvEptType, eptp: u64) -> Result {
-   let descriptor = InvEptDesc { eptp, reserved: 0 };
-   unsafe {
-       asm!("invept ({0}), {1}",
+    let descriptor = InvEptDesc { eptp, reserved: 0 };
+    unsafe {
+        asm!("invept ({0}), {1}",
        in(reg) &descriptor,
        in(reg) invalidation as u64,
        options(att_syntax));
-   }
-   vmcs_status()
+    }
+    vmcs_status()
 }
 
 pub(crate) fn read_msr(msr: X86Msr) -> u64 {
-    let val: u64 = unsafe { bindings::rkvm_read_msr(msr as u32) };
-    val
+    let (high, low): (u32, u32);
+    unsafe {
+        asm!("rdmsr", out("eax") low, out("edx") high, in("ecx") msr as u32);
+    }
+    ((high as u64) << 32) | (low as u64)
+}
+
+pub(crate) fn write_msr(msr: X86Msr, value: u64) {
+    let low = value as u32;
+    let high = (value >> 32) as u32;
+    unsafe {
+        asm!("wrmsr", in("ecx") msr as u32, in("eax") low, in("edx") high);
+    }
 }
 
 // const X86_EFER_LME: u64 = 0x00000100; /* long mode enable */
