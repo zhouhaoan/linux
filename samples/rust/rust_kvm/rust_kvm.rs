@@ -132,7 +132,7 @@ impl KernelModule for RustMiscdev {
     fn init(name: &'static CStr, module: &'static ThisModule) -> Result<Self> {
         pr_info!("Rust kvm module (init) name={:?} \n", name);
         {
-            let lock = module.kernel_param_lock();
+            let _lock = module.kernel_param_lock();
             unsafe {
                 DEBUG_ON = *debug.read();
             }

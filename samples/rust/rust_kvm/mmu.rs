@@ -201,7 +201,9 @@ impl RkvmMmu {
 
         rkvm_debug!("hpa= {:x}, eptp = {:x} \n", self.root_hpa, eptp);
 
-        invept(InvEptType::Single, eptp);
+        if invept(InvEptType::Single, eptp).is_err() {
+            pr_info!(" invept:Single, eptp=0x{:x} failed \n", eptp);
+        }
         Ok(())
     }
     pub(crate) fn is_pte_present(&self, pte: u64) -> bool {

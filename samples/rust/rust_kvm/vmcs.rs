@@ -386,7 +386,7 @@ fn vmcs_read(field: VmcsField) -> Result<u64> {
         asm!("vmread {0}, {1};", in(reg) field, out(reg) value, options(att_syntax));
     }
     match vmcs_status() {
-        Ok(()) => return Ok((value)),
+        Ok(()) => return Ok(value),
         Err(e) => return Err(e),
     }
 }

@@ -293,7 +293,7 @@ impl ExitInfo {
 }
 
 pub(crate) fn handle_hlt(exit_info: &ExitInfo, vcpu: &VcpuWrapper) -> Result<u64> {
-    let mut vcpuinner = vcpu.vcpuinner.lock();
+    let vcpuinner = vcpu.vcpuinner.lock();
     unsafe {
         (*(vcpuinner.run.as_mut_ptr::<RkvmRun>())).exit_reason =
             (RkvmUserExitReason::from(exit_info.exit_reason)) as u32;
@@ -304,7 +304,7 @@ pub(crate) fn handle_hlt(exit_info: &ExitInfo, vcpu: &VcpuWrapper) -> Result<u64
 
 pub(crate) fn handle_io(exit_info: &ExitInfo, vcpu: &VcpuWrapper) -> Result<u64> {
     let exit_qualification = exit_info.exit_qualification;
-    let mut vcpuinner = vcpu.vcpuinner.lock();
+    let vcpuinner = vcpu.vcpuinner.lock();
     unsafe {
         (*(vcpuinner.run.as_mut_ptr::<RkvmRun>())).io.port = (exit_qualification >> 16) as u16;
         (*(vcpuinner.run.as_mut_ptr::<RkvmRun>())).io.size = ((exit_qualification & 7) + 1) as u8;
@@ -475,7 +475,7 @@ fn make_noleaf_spte(pt: u64, flags: &EptMasks) -> u64 {
 fn rkvm_tdp_map(vcpu: &VcpuWrapper, fault: &mut RkvmPageFault) -> Result {
     let mut level: u64 = 4;
     let mut vcpuinner = vcpu.vcpuinner.lock();
-    let mut level_gfn = make_level_gfn(fault.gfn, level)?;
+    let level_gfn = make_level_gfn(fault.gfn, level)?;
     let mut pre_mmu_page = vcpuinner.mmu.root_mmu_page.clone();
     let flags = vcpuinner.mmu.spte_flags.clone();
     let mut spte = rkvm_read_spte(pre_mmu_page.clone(), level_gfn, level)?;
@@ -573,6 +573,8 @@ pub(crate) fn handle_ept_violation(exit_info: &ExitInfo, vcpu: &VcpuWrapper) -> 
         Ok(r) => r,
         Err(e) => return Err(e),
     };
-    invept(InvEptType::Global, 0);
+    if invept(InvEptType::Global, 0).is_err() {
+        pr_info!(" invept:Global failed\n");
+    }
     Ok(1)
 }

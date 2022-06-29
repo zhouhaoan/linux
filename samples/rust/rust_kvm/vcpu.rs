@@ -310,7 +310,7 @@ impl VcpuWrapper {
                 if vector_info & 0x80000000 != 0 {
                     pr_err!(" EPT_MISCONFIGURATION, vector_info: {:x} \n", vector_info);
 
-                    let mut vcpuinner = self.vcpuinner.lock();
+                    let vcpuinner = self.vcpuinner.lock();
                     unsafe {
                         (*(vcpuinner.run.as_mut_ptr::<RkvmRun>())).exit_reason =
                             (RkvmUserExitReason::RKVM_EXIT_INTERNAL_ERROR) as u32;
@@ -327,7 +327,7 @@ impl VcpuWrapper {
             }
             _ => {
                 pr_err!(" vmx exit_reason = {:?} \n", exit_info.exit_reason);
-                let mut vcpuinner = self.vcpuinner.lock();
+                let vcpuinner = self.vcpuinner.lock();
                 unsafe {
                     (*(vcpuinner.run.as_mut_ptr::<RkvmRun>())).exit_reason =
                         (RkvmUserExitReason::RKVM_EXIT_INTERNAL_ERROR) as u32;
@@ -417,7 +417,7 @@ impl VcpuWrapper {
                     }
                 }
                 Err(_err) => {
-                    let mut vcpuinner = self.vcpuinner.lock();
+                    let vcpuinner = self.vcpuinner.lock();
                     pr_err!("  vcpu run failed \n");
                     dump_vmcs();
                     unsafe {
