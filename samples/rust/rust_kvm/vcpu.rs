@@ -182,7 +182,7 @@ impl RkvmPage {
         }
     }
     pub(crate) fn as_mut_ptr<T>(&self) -> *mut T {
-       self.va as *mut T
+        self.va as *mut T
     }
 }
 
@@ -205,35 +205,34 @@ pub(crate) fn alloc_vmcs(revision_id: u32) -> Result<RkvmPage> {
         Ok(page) => page,
         Err(err) => return Err(err),
     };
-    let vmcs = RkvmPage::new(page); 
-    let ptr = vmcs.va as *mut u32;
+    let vmcs = RkvmPage::new(page);
     unsafe {
-        *ptr = revision_id;
+        (*(vmcs.as_mut_ptr::<RkvmVmcs>())).revision_id = revision_id;
     }
 
-    rkvm_debug!("Rust kvm: vmcs={:x},revision={:?} \n", vmcs.va, *ptr,);
+    rkvm_debug!(
+        "Rust kvm: vmcs={:x},revision={:?} \n",
+        vmcs.va,
+        (*(vmcs.as_mut_ptr::<RkvmVmcs>())).revision_id
+    );
 
     Ok(vmcs)
 }
 
 fn vmcs_load(va: u64) {
-    let phy = unsafe {
-        bindings::rkvm_phy_address(va)
-    };
+    let phy = unsafe { bindings::rkvm_phy_address(va) };
     if phy == 0 {
-       pr_err!(" vmcs_load failed \n");
+        pr_err!(" vmcs_load failed \n");
     }
     if vmptrld(phy).is_err() {
-       pr_info!(" vmptrld failed phy={:x} \n", phy);
+        pr_info!(" vmptrld failed phy={:x} \n", phy);
     }
 }
 
 fn vmcs_clear(va: u64) {
-    let phy = unsafe {
-        bindings::rkvm_phy_address(va)
-    };
+    let phy = unsafe { bindings::rkvm_phy_address(va) };
     if vmclear(phy).is_err() {
-       pr_info!(" vmclear failed phy={:x} \n", phy);
+        pr_info!(" vmclear failed phy={:x} \n", phy);
     }
 }
 
