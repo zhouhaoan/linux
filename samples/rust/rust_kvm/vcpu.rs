@@ -313,9 +313,9 @@ impl VcpuWrapper {
                     pr_err!(" EPT_MISCONFIGURATION, vector_info: {:x} \n", vector_info);
 
                     let vcpuinner = self.vcpuinner.lock();
-                    let ptr = (vcpuinner.run.va + 8) as *mut u64;
                     unsafe {
-                        (*ptr) = 2;
+                        (*(vcpuinner.run.ptr)).exit_reason =
+                            (RkvmUserExitReason::RKVM_EXIT_INTERNAL_ERROR) as u32;
                     }
                     return Err(Error::EINVAL);
                 }
