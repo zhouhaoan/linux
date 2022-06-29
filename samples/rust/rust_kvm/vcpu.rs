@@ -163,26 +163,26 @@ pub(crate) struct RkvmVmcs {
 }
 
 #[allow(dead_code)]
-pub(crate) struct RkvmPage<T> {
+pub(crate) struct RkvmPage {
     pub(crate) rpage: Pages<0>,
     pub(crate) va: u64,
-    pub(crate) ptr: *mut T,
 }
 
-impl<T> RkvmPage<T> {
+impl RkvmPage {
     pub(crate) fn new(rpage: Pages<0>) -> Self {
         let va = unsafe { bindings::rkvm_page_address(rpage.pages) };
         let ptr = va as *mut c_void;
         unsafe {
             bindings::memset(ptr, 0, PAGE_SIZE as u64);
         }
-        let ptr = va as *mut T; //NonNull::new(va as *mut T).unwrap().as_ptr();
 
         Self {
             rpage: rpage,
             va: va,
-            ptr: ptr,
         }
+    }
+    pub(crate) fn as_mut_ptr<T>(&self) -> *mut T {
+       self.va as *mut T
     }
 }
 
@@ -193,20 +193,19 @@ pub(crate) struct Vcpu {
     pub(crate) host_state: Pin<Box<HostState>>,
     // DefMut trait for UniqueRef, List use it
     pub(crate) mmu: UniqueRef<RkvmMmu>,
-    pub(crate) run: RkvmPage<RkvmRun>,
-    pub(crate) vmcs: RkvmPage<RkvmVmcs>,
+    pub(crate) run: RkvmPage,
+    pub(crate) vmcs: RkvmPage,
     pub(crate) vcpu_id: u32,
     pub(crate) launched: bool,
 }
 
-pub(crate) fn alloc_vmcs(revision_id: u32) -> Result<RkvmPage<RkvmVmcs>> {
+pub(crate) fn alloc_vmcs(revision_id: u32) -> Result<RkvmPage> {
     let page = Pages::<0>::new();
     let page = match page {
         Ok(page) => page,
         Err(err) => return Err(err),
     };
-    let vmcs = RkvmPage::<RkvmVmcs>::new(page);
-    //unsafe { (*vmcs.ptr).revision_id = revision_id; }
+    let vmcs = RkvmPage::new(page); 
     let ptr = vmcs.va as *mut u32;
     unsafe {
         *ptr = revision_id;
@@ -251,7 +250,7 @@ impl VcpuWrapper {
             Ok(page) => page,
             Err(err) => return Err(err),
         };
-        let run = RkvmPage::<RkvmRun>::new(run);
+        let run = RkvmPage::new(run);
         // alloc vmcs and init
         let vmcs = alloc_vmcs(revision_id);
         let vmcs = match vmcs {
@@ -314,7 +313,7 @@ impl VcpuWrapper {
 
                     let mut vcpuinner = self.vcpuinner.lock();
                     unsafe {
-                        (*(vcpuinner.run.ptr)).exit_reason =
+                        (*(vcpuinner.run.as_mut_ptr::<RkvmRun>())).exit_reason =
                             (RkvmUserExitReason::RKVM_EXIT_INTERNAL_ERROR) as u32;
                     }
                     return Err(Error::EINVAL);
@@ -331,7 +330,7 @@ impl VcpuWrapper {
                 pr_err!(" vmx exit_reason = {:?} \n", exit_info.exit_reason);
                 let mut vcpuinner = self.vcpuinner.lock();
                 unsafe {
-                    (*(vcpuinner.run.ptr)).exit_reason =
+                    (*(vcpuinner.run.as_mut_ptr::<RkvmRun>())).exit_reason =
                         (RkvmUserExitReason::RKVM_EXIT_INTERNAL_ERROR) as u32;
                 }
                 return Err(Error::EINVAL);
@@ -386,7 +385,7 @@ impl VcpuWrapper {
                 dump_vmcs();
                 let host_rsp = vmcs_read64(VmcsField::HOST_RSP);
                 unsafe {
-                    (*(vcpuinner.run.ptr)).exit_reason =
+                    (*(vcpuinner.run.as_mut_ptr::<RkvmRun>())).exit_reason =
                         (RkvmUserExitReason::RKVM_EXIT_FAIL_ENTRY) as u32;
                 }
 
@@ -423,7 +422,7 @@ impl VcpuWrapper {
                     pr_err!("  vcpu run failed \n");
                     dump_vmcs();
                     unsafe {
-                        (*(vcpuinner.run.ptr)).exit_reason =
+                        (*(vcpuinner.run.as_mut_ptr::<RkvmRun>())).exit_reason =
                             (RkvmUserExitReason::RKVM_EXIT_INTERNAL_ERROR) as u32;
                     }
                     return -1;

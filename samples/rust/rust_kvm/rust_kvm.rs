@@ -152,7 +152,7 @@ impl Drop for RustMiscdev {
     }
 }
 
-static mut VMXON_VMCS: Option<RkvmPage<RkvmVmcs>> = None;
+static mut VMXON_VMCS: Option<RkvmPage> = None;
 fn rkvm_set_vmxon(state: &RkvmState) -> Result<u32> {
     let revision_id = state.inner.lock().vmcsconf.revision_id;
     let vmcs = alloc_vmcs(revision_id);

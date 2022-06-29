@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-use super::VcpuWrapper;
+use super::{VcpuWrapper, RkvmRun};
 use crate::mmu::*;
 use crate::vmcs::*;
 use crate::{rkvm_debug, DEBUG_ON};
@@ -295,7 +295,7 @@ impl ExitInfo {
 pub(crate) fn handle_hlt(exit_info: &ExitInfo, vcpu: &VcpuWrapper) -> Result<u64> {
     let mut vcpuinner = vcpu.vcpuinner.lock();
     unsafe {
-        (*(vcpuinner.run.ptr)).exit_reason =
+        (*(vcpuinner.run.as_mut_ptr::<RkvmRun>())).exit_reason =
             (RkvmUserExitReason::from(exit_info.exit_reason)) as u32;
     }
     exit_info.next_rip();
@@ -306,11 +306,11 @@ pub(crate) fn handle_io(exit_info: &ExitInfo, vcpu: &VcpuWrapper) -> Result<u64>
     let exit_qualification = exit_info.exit_qualification;
     let mut vcpuinner = vcpu.vcpuinner.lock();
     unsafe {
-        (*(vcpuinner.run.ptr)).io.port = (exit_qualification >> 16) as u16;
-        (*(vcpuinner.run.ptr)).io.size = ((exit_qualification & 7) + 1) as u8;
-        (*(vcpuinner.run.ptr)).io.direction = ((exit_qualification & 8) != 0) as u8;
-        (*(vcpuinner.run.ptr)).io.count = 1;
-        (*(vcpuinner.run.ptr)).exit_reason =
+        (*(vcpuinner.run.as_mut_ptr::<RkvmRun>())).io.port = (exit_qualification >> 16) as u16;
+        (*(vcpuinner.run.as_mut_ptr::<RkvmRun>())).io.size = ((exit_qualification & 7) + 1) as u8;
+        (*(vcpuinner.run.as_mut_ptr::<RkvmRun>())).io.direction = ((exit_qualification & 8) != 0) as u8;
+        (*(vcpuinner.run.as_mut_ptr::<RkvmRun>())).io.count = 1;
+        (*(vcpuinner.run.as_mut_ptr::<RkvmRun>())).exit_reason =
             (RkvmUserExitReason::from(exit_info.exit_reason)) as u32;
     }
 
