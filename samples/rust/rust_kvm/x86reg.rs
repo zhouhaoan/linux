@@ -37,6 +37,7 @@ pub(crate) enum RFlags {
 #[derive(Clone, Copy, Debug)]
 #[allow(non_camel_case_types)]
 pub(crate) enum X86Msr {
+    VMX_BASIC = 0x00000480,
     FS_BASE = 0xc0000100, /* fs base address */
     GS_BASE = 0xc0000101, /* gs base address */
     KERNEL_GS_BASE = 0xc0000102,

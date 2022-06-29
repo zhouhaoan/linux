@@ -680,7 +680,7 @@ impl VmcsConfig {
                           EntryControls::LOAD_IA32_PAT
                            | EntryControls::LOAD_IA32_EFER;
 
-        let v = unsafe { bindings::rkvm_read_msr(bindings::MSR_IA32_VMX_BASIC) };
+        let v = read_msr(X86Msr::VMX_BASIC);
         let low: u32 = v as u32;
         let high: u32 = (v >> 32) as u32;
         if ((high >> 18) & 15) != 6 {
