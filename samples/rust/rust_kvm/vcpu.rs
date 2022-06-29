@@ -312,7 +312,7 @@ impl VcpuWrapper {
                 if vector_info & 0x80000000 != 0 {
                     pr_err!(" EPT_MISCONFIGURATION, vector_info: {:x} \n", vector_info);
 
-                    let vcpuinner = self.vcpuinner.lock();
+                    let mut vcpuinner = self.vcpuinner.lock();
                     unsafe {
                         (*(vcpuinner.run.ptr)).exit_reason =
                             (RkvmUserExitReason::RKVM_EXIT_INTERNAL_ERROR) as u32;
