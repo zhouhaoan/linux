@@ -434,16 +434,6 @@ unsigned long __no_profile native2_read_cr0(void)
 }
 EXPORT_SYMBOL_GPL(native2_read_cr0);
 
-void rkvm_vmxon(u64 addr)
-{
-	unsigned long cr4;
-	cr4 = native_read_cr4();
-	cr4 |= X86_CR4_VMXE;
-	native_write_cr4(cr4);
-	asm volatile ("vmxon %0" : : "m"(addr));
-}
-EXPORT_SYMBOL(rkvm_vmxon);
-
 void rkvm_vmxoff()
 {
 	unsigned long cr4;

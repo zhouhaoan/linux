@@ -80,7 +80,6 @@ unsigned long native2_read_cr3(void);
 unsigned long native2_read_cr4(void);
 void native_write_cr4(unsigned long val);
 unsigned long cr4_read_shadow(void);
-void rkvm_vmxon(u64 addr);
 void rkvm_vmxoff(void);
 
 void rkvm_wrgsbase(unsigned long gs);
