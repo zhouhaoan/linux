@@ -504,18 +504,6 @@ u64 rkvm_rflags_read()
 }
 EXPORT_SYMBOL(rkvm_rflags_read);
 
-void rkvm_irq_disable(void)
-{
-       asm volatile("cli": : :"memory");
-}
-EXPORT_SYMBOL(rkvm_irq_disable);
-
-void rkvm_irq_enable(void)
-{
-        asm volatile("sti": : :"memory");
-}
-EXPORT_SYMBOL(rkvm_irq_enable);
-
 void cr4_update_irqsoff(unsigned long set, unsigned long clear)
 {
 	unsigned long newval, cr4 = this_cpu_read(cpu_tlbstate.cr4);

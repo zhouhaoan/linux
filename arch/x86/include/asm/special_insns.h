@@ -92,8 +92,6 @@ unsigned short rkvm_read_ldt(void);
 void rkvm_load_ldt(unsigned short sel);
 
 u64 rkvm_rflags_read(void);
-void rkvm_irq_disable(void);
-void rkvm_irq_enable(void);
 
 #ifdef CONFIG_X86_INTEL_MEMORY_PROTECTION_KEYS
 static inline u32 rdpkru(void)
