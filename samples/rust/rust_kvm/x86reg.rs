@@ -57,6 +57,36 @@ pub(crate) enum X86Msr {
     TRUE_ENTRY_CTLS = 0x490,
 }
 
+pub(crate) fn read_cr0() -> u64 {
+    let val: u64;
+    unsafe {
+        asm!("mov {0}, cr0",
+            out(reg) val
+        );
+    }
+    return val;
+}
+
+pub(crate) fn read_cr2() -> u64 {
+    let val: u64;
+    unsafe {
+        asm!("mov {0}, cr2",
+            out(reg) val
+        );
+    }
+    return val;
+}
+
+pub(crate) fn read_cr3() -> u64 {
+    let val: u64;
+    unsafe {
+        asm!("mov {0}, cr3",
+            out(reg) val
+        );
+    }
+    return val;
+}
+
 pub(crate) fn read_cr4() -> u64 {
     let val: u64;
     unsafe {

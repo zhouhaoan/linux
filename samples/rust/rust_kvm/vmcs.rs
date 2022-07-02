@@ -741,9 +741,9 @@ impl VmcsConfig {
         Ok(0)
     }
     pub(crate) fn set_host_constant_vmcs(&self) {
-        let mut cr0 = unsafe { bindings::native2_read_cr0() };
+        let mut cr0 = read_cr0();
         cr0 &= !(Cr0::CR0_TS as u64);
-        let cr3 = unsafe { bindings::native2_read_cr3() };
+        let cr3 = read_cr3();
         // let cr4 = unsafe { bindings::cr4_read_shadow() };
         vmcs_write64(VmcsField::HOST_CR0, cr0);
         vmcs_write64(VmcsField::HOST_CR3, cr3);
