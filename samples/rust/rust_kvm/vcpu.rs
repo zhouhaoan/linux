@@ -302,6 +302,13 @@ impl VcpuWrapper {
         let exit_info = ExitInfo::from_vmcs();
 
         match exit_info.exit_reason {
+            ExitReason::EXTERNAL_INTERRUPT => {
+                let intr_info = vmcs_read32(VmcsField::IDT_VECTORING_INFO);
+                rkvm_debug!(" interrupt: {:x} \n", intr_info);
+
+                return Ok(1);
+            }
+            ExitReason::CPUID => return handle_cpuid(&exit_info, self),
             ExitReason::HLT => return handle_hlt(&exit_info, self),
             ExitReason::IO_INSTRUCTION => return handle_io(&exit_info, self),
             ExitReason::EPT_VIOLATION => return handle_ept_violation(&exit_info, self),
@@ -318,12 +325,6 @@ impl VcpuWrapper {
                     return Err(Error::EINVAL);
                 }
                 return handle_ept_misconfig(&exit_info, self);
-            }
-            ExitReason::EXTERNAL_INTERRUPT => {
-                let intr_info = vmcs_read32(VmcsField::IDT_VECTORING_INFO);
-                rkvm_debug!(" interrupt: {:x} \n", intr_info);
-
-                return Ok(1);
             }
             _ => {
                 pr_err!(" vmx exit_reason = {:?} \n", exit_info.exit_reason);
