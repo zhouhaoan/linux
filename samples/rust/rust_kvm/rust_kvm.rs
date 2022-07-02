@@ -176,7 +176,7 @@ fn rkvm_set_vmxon(state: &RkvmState) -> Result<u32> {
         Err(err) => return Err(/*Error::ENOMEM*/ err),
     };
 
-    let vmxe = unsafe { bindings::native2_read_cr4() & Cr4::CR4_ENABLE_VMX as u64 };
+    let vmxe = read_cr4() & Cr4::CR4_ENABLE_VMX as u64;
 
     rkvm_debug!("Rust kvm :vmxe {:}\n", vmxe);
 

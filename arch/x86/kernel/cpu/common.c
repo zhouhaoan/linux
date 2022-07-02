@@ -406,16 +406,6 @@ set_register:
 EXPORT_SYMBOL_GPL(native_write_cr4);
 #endif
 
-unsigned long __no_profile native2_read_cr4(void)
-{
-	unsigned long val;
-
-	/* CR4 always exists on x86_64. */
-	asm volatile("mov %%cr4,%0\n\t" : "=r" (val) : __FORCE_ORDER);
-	return val;
-}
-EXPORT_SYMBOL_GPL(native2_read_cr4);
-
 unsigned long __no_profile native2_read_cr3(void)
 {
    return __native_read_cr3();

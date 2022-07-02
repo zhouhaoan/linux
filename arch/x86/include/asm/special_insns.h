@@ -77,7 +77,6 @@ static inline unsigned long native_read_cr4(void)
 unsigned long native2_read_cr0(void);
 unsigned long native2_read_cr2(void);
 unsigned long native2_read_cr3(void);
-unsigned long native2_read_cr4(void);
 void native_write_cr4(unsigned long val);
 unsigned long cr4_read_shadow(void);
 void rkvm_vmxoff(void);
