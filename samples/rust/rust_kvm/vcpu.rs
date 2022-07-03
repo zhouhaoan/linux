@@ -4,8 +4,9 @@ use crate::exit::*;
 use crate::mmu::*;
 use crate::vmcs::*;
 use crate::vmstat::*;
+use crate::x86reg::*;
 use crate::{rkvm_debug, DEBUG_ON};
-use core::arch::global_asm;
+use core::arch::{asm, global_asm};
 use core::pin::Pin;
 use kernel::bindings;
 use kernel::c_types::c_void;
@@ -186,6 +187,18 @@ impl RkvmPage {
     }
 }
 
+pub(crate) fn rkvm_irq_disable() {
+    unsafe {
+        asm!("cli");
+    }
+}
+
+pub(crate) fn rkvm_irq_enable() {
+    unsafe {
+        asm!("sti");
+    }
+}
+
 #[allow(dead_code)]
 pub(crate) struct Vcpu {
     pub(crate) guest: Ref<GuestWrapper>,
@@ -353,9 +366,7 @@ impl VcpuWrapper {
             vcpuinner.guest_state.rip = rip;
         }
         loop {
-            unsafe {
-                bindings::rkvm_irq_disable();
-            }
+            rkvm_irq_disable();
             let has_err_;
             {
                 let vcpuinner = self.vcpuinner.lock();
@@ -378,9 +389,7 @@ impl VcpuWrapper {
             );
 
             if has_err_ == 1 {
-                unsafe {
-                    bindings::rkvm_irq_enable();
-                }
+                rkvm_irq_enable();
                 let mut vcpuinner = self.vcpuinner.lock();
                 dump_vmcs();
                 let host_rsp = vmcs_read64(VmcsField::HOST_RSP);
@@ -390,7 +399,8 @@ impl VcpuWrapper {
                 }
 
                 let ret = vmcs_read32(VmcsField::VM_INSTRUCTION_ERROR);
-                let rflags = unsafe { bindings::rkvm_rflags_read() };
+                let rflags = read_rflags();
+                
                 pr_err!(
                     "run loop after _vmx_vcpu_run, rflags={:x},ret={:x} \n",
                     rflags,
@@ -399,9 +409,7 @@ impl VcpuWrapper {
 
                 return -1;
             }
-            unsafe {
-                bindings::rkvm_irq_enable();
-            }
+            rkvm_irq_enable();
             {
                 let mut vcpuinner = self.vcpuinner.lock();
 
