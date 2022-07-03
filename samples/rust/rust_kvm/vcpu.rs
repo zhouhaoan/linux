@@ -4,6 +4,7 @@ use crate::exit::*;
 use crate::mmu::*;
 use crate::vmcs::*;
 use crate::vmstat::*;
+use crate::x86reg::*;
 use crate::{rkvm_debug, DEBUG_ON};
 use core::arch::{asm, global_asm};
 use core::pin::Pin;
@@ -398,7 +399,8 @@ impl VcpuWrapper {
                 }
 
                 let ret = vmcs_read32(VmcsField::VM_INSTRUCTION_ERROR);
-                let rflags = unsafe { bindings::rkvm_rflags_read() };
+                let rflags = read_rflags();
+                
                 pr_err!(
                     "run loop after _vmx_vcpu_run, rflags={:x},ret={:x} \n",
                     rflags,

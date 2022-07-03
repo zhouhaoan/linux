@@ -322,7 +322,7 @@ pub(crate) struct VmcsConfig {
 }
 
 fn vmcs_status() -> Result {
-    let rflags = unsafe { bindings::rkvm_rflags_read() };
+    let rflags = read_rflags();
     if rflags & (RFlags::FLAGS_ZF as u64 + RFlags::FLAGS_CF as u64) != 0 {
         return Err(Error::EINVAL);
     }

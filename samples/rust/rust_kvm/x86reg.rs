@@ -104,3 +104,15 @@ pub(crate) fn write_cr4(val: u64) {
         );
     }
 }
+
+#[no_mangle]
+pub(crate) fn read_rflags() -> u64 {
+    let flags: u64;
+    unsafe {
+        asm!("pushf",
+            "pop {0}",
+            out(reg) flags,
+        );
+    }
+    flags
+}

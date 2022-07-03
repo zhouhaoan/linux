@@ -460,12 +460,6 @@ void rkvm_load_ldt(unsigned short sel)
 }
 EXPORT_SYMBOL(rkvm_load_ldt);
 
-u64 rkvm_rflags_read()
-{
-	return native_save_fl();
-}
-EXPORT_SYMBOL(rkvm_rflags_read);
-
 void cr4_update_irqsoff(unsigned long set, unsigned long clear)
 {
 	unsigned long newval, cr4 = this_cpu_read(cpu_tlbstate.cr4);
