@@ -74,13 +74,9 @@ static inline unsigned long native_read_cr4(void)
 	return val;
 }
 
-unsigned long native2_read_cr0(void);
-unsigned long native2_read_cr2(void);
-unsigned long native2_read_cr3(void);
-unsigned long native2_read_cr4(void);
+
 void native_write_cr4(unsigned long val);
 unsigned long cr4_read_shadow(void);
-void rkvm_vmxon(u64 addr);
 void rkvm_vmxoff(void);
 
 void rkvm_wrgsbase(unsigned long gs);
@@ -90,10 +86,6 @@ unsigned long rkvm_rdfsbase(void);
 
 unsigned short rkvm_read_ldt(void);
 void rkvm_load_ldt(unsigned short sel);
-
-u64 rkvm_rflags_read(void);
-void rkvm_irq_disable(void);
-void rkvm_irq_enable(void);
 
 #ifdef CONFIG_X86_INTEL_MEMORY_PROTECTION_KEYS
 static inline u32 rdpkru(void)

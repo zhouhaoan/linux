@@ -406,44 +406,6 @@ set_register:
 EXPORT_SYMBOL_GPL(native_write_cr4);
 #endif
 
-unsigned long __no_profile native2_read_cr4(void)
-{
-	unsigned long val;
-
-	/* CR4 always exists on x86_64. */
-	asm volatile("mov %%cr4,%0\n\t" : "=r" (val) : __FORCE_ORDER);
-	return val;
-}
-EXPORT_SYMBOL_GPL(native2_read_cr4);
-
-unsigned long __no_profile native2_read_cr3(void)
-{
-   return __native_read_cr3();
-}
-EXPORT_SYMBOL_GPL(native2_read_cr3);
-
-unsigned long __no_profile native2_read_cr2(void)
-{
-   return native_read_cr2();
-}
-EXPORT_SYMBOL_GPL(native2_read_cr2);
-
-unsigned long __no_profile native2_read_cr0(void)
-{
-   return native_read_cr0();
-}
-EXPORT_SYMBOL_GPL(native2_read_cr0);
-
-void rkvm_vmxon(u64 addr)
-{
-	unsigned long cr4;
-	cr4 = native_read_cr4();
-	cr4 |= X86_CR4_VMXE;
-	native_write_cr4(cr4);
-	asm volatile ("vmxon %0" : : "m"(addr));
-}
-EXPORT_SYMBOL(rkvm_vmxon);
-
 void rkvm_vmxoff()
 {
 	unsigned long cr4;
@@ -497,24 +459,6 @@ void rkvm_load_ldt(unsigned short sel)
 	asm("lldt %0" : : "rm"(sel));
 }
 EXPORT_SYMBOL(rkvm_load_ldt);
-
-u64 rkvm_rflags_read()
-{
-	return native_save_fl();
-}
-EXPORT_SYMBOL(rkvm_rflags_read);
-
-void rkvm_irq_disable(void)
-{
-       asm volatile("cli": : :"memory");
-}
-EXPORT_SYMBOL(rkvm_irq_disable);
-
-void rkvm_irq_enable(void)
-{
-        asm volatile("sti": : :"memory");
-}
-EXPORT_SYMBOL(rkvm_irq_enable);
 
 void cr4_update_irqsoff(unsigned long set, unsigned long clear)
 {
