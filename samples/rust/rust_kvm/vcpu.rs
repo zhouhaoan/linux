@@ -171,7 +171,7 @@ pub(crate) struct RkvmPage {
 
 impl RkvmPage {
     pub(crate) fn new(rpage: Pages<0>) -> Self {
-        let va = unsafe { bindings::rkvm_page_address(rpage.pages) };
+        let va = unsafe { bindings::page_address(rpage.pages) as u64 };
         let ptr = va as *mut c_void;
         unsafe {
             bindings::memset(ptr, 0, PAGE_SIZE as u64);

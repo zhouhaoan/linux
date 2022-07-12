@@ -230,7 +230,7 @@ impl RkvmMmuPage {
             Ok(page) => page,
             Err(err) => return Err(err),
         };
-        let spt = unsafe { Some(bindings::rkvm_page_address(page.pages)) };
+        let spt = unsafe { Some(bindings::page_address(page.pages) as u64) };
 
         let mmu_page = Ref::try_new(RkvmMmuPage {
             gfn: gfn,

@@ -1739,13 +1739,6 @@ unsigned long rkvm_get_current_tss_ro(void)
 }
 EXPORT_SYMBOL_GPL(rkvm_get_current_tss_ro);
 
-unsigned long rkvm_page_address(struct page * page)
-{
-	return lowmem_page_address(page);
-}
-
-EXPORT_SYMBOL_GPL(rkvm_page_address);
-
 unsigned long rkvm_phy_address(unsigned long addr)
 {
 	return __pa(addr);
