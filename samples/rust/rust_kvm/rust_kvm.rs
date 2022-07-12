@@ -3,6 +3,7 @@
 //! Rust KVM for VMX
 #[allow(missing_docs)]
 use core::cfg;
+use core::arch::asm;
 use kernel::c_types::c_void;
 use kernel::mm::virt::Area;
 use kernel::prelude::*;
@@ -159,6 +160,20 @@ impl Drop for RustMiscdev {
 }
 
 static mut VMXON_VMCS: Option<RkvmPage> = None;
+fn rkvm_vmxon(addr: u64) {
+    let mut cr4: u64 = read_cr4();
+    cr4 |= Cr4::CR4_ENABLE_VMX as u64;
+    write_cr4(cr4);
+    rkvm_debug!("written new cr4 value\n");
+    unsafe {
+        asm!(
+            "vmxon ({0})",
+            in(reg) &addr,
+            options(att_syntax)
+        );
+    }
+}
+
 fn rkvm_set_vmxon(state: &RkvmState) -> Result<u32> {
     let revision_id = state.inner.lock().vmcsconf.revision_id;
     let vmcs = alloc_vmcs(revision_id);
@@ -167,7 +182,7 @@ fn rkvm_set_vmxon(state: &RkvmState) -> Result<u32> {
         Err(err) => return Err(/*Error::ENOMEM*/ err),
     };
 
-    let vmxe = unsafe { bindings::native2_read_cr4() & bit(x86reg::Cr4::CR4_ENABLE_VMX) };
+    let vmxe = read_cr4() & Cr4::CR4_ENABLE_VMX as u64;
 
     rkvm_debug!("Rust kvm :vmxe {:}\n", vmxe);
 
@@ -180,7 +195,7 @@ fn rkvm_set_vmxon(state: &RkvmState) -> Result<u32> {
 
         rkvm_debug!(" pa = {:x}\n", pa);
 
-        bindings::rkvm_vmxon(pa);
+        rkvm_vmxon(pa);
         VMXON_VMCS = Some(vmcs);
     }
     Ok(0)

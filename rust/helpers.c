@@ -506,6 +506,12 @@ const struct of_device_id *rust_helper_of_match_device(
 }
 EXPORT_SYMBOL_GPL(rust_helper_of_match_device);
 
+const void *rust_helper_page_address(struct page *page)
+{
+       return page_address(page);
+}
+EXPORT_SYMBOL_GPL(rust_helper_page_address);
+
 /* We use bindgen's --size_t-is-usize option to bind the C size_t type
  * as the Rust usize type, so we can use it in contexts where Rust
  * expects a usize like slice (array) indices. usize is defined to be
