@@ -69,6 +69,7 @@ pub mod virt {
             to_result(unsafe { bindings::vm_insert_page(self.vma, address as _, page.pages) })
         }
 
+	/// Return vm_area_struct
         pub fn get(&self) -> *mut bindings::vm_area_struct {
             self.vma
         }
