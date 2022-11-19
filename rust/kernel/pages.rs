@@ -120,6 +120,11 @@ impl<const ORDER: u32> Pages<ORDER> {
             _phantom: PhantomData,
         })
     }
+
+   /// Return struct page
+   pub fn get(&self) -> *mut bindings::page {
+      self.pages
+   }
 }
 
 impl<const ORDER: u32> Drop for Pages<ORDER> {

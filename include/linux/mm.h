@@ -3475,4 +3475,11 @@ madvise_set_anon_name(struct mm_struct *mm, unsigned long start,
  */
 #define  ZAP_FLAG_DROP_MARKER        ((__force zap_flags_t) BIT(0))
 
+//likex
+
+unsigned long rkvm_get_current_gdt_ro(void);
+unsigned long rkvm_get_current_tss_ro(void);
+unsigned long rkvm_phy_address(unsigned long addr);
+unsigned long rkvm_mmap(struct file *file, struct vm_area_struct *vma);
+
 #endif /* _LINUX_MM_H */

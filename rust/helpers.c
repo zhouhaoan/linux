@@ -655,6 +655,23 @@ int rust_helper_fs_parse(struct fs_context *fc,
 }
 EXPORT_SYMBOL_GPL(rust_helper_fs_parse);
 
+const void *rust_helper_page_address(struct page *page)
+{
+       return page_address(page);
+}
+EXPORT_SYMBOL_GPL(rust_helper_page_address);
+
+void rust_helper_mmget(struct mm_struct *mm)
+{
+	mmget(mm);
+}
+EXPORT_SYMBOL_GPL(rust_helper_mmget);
+
+unsigned long rust_helper_page_to_pfn(struct page* page)
+{
+	return page_to_pfn(page);
+}
+EXPORT_SYMBOL_GPL(rust_helper_page_to_pfn);
 /*
  * We use `bindgen`'s `--size_t-is-usize` option to bind the C `size_t` type
  * as the Rust `usize` type, so we can use it in contexts where Rust

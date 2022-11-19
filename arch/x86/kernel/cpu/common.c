@@ -459,6 +459,54 @@ set_register:
 EXPORT_SYMBOL_GPL(native_write_cr4);
 #endif
 
+void rkvm_vmxoff()
+{
+        unsigned long cr4;
+        asm volatile ("vmxoff");
+        cr4 = native_read_cr4();
+        cr4 &= ~X86_CR4_VMXE;
+        native_write_cr4(cr4);
+}
+EXPORT_SYMBOL(rkvm_vmxoff);
+
+unsigned long rkvm_rdgsbase(void)
+{
+        int cpu;
+        unsigned long ret;
+        preempt_disable();
+        cpu = smp_processor_id();
+        ret = cpu_kernelmode_gs_base(cpu);
+        preempt_enable();
+        return ret;
+}
+EXPORT_SYMBOL(rkvm_rdgsbase);
+
+void rkvm_wrfsbase(unsigned long fs)
+{
+        wrfsbase(fs);
+}
+EXPORT_SYMBOL(rkvm_wrfsbase);
+
+void rkvm_wrgsbase(unsigned long gs)
+{
+        wrgsbase(gs);
+}
+EXPORT_SYMBOL(rkvm_wrgsbase);
+
+unsigned short rkvm_read_ldt(void)
+{
+        unsigned short ldt;
+        asm("sldt %0" : "=g"(ldt));
+        return ldt;
+}
+EXPORT_SYMBOL(rkvm_read_ldt);
+
+void rkvm_load_ldt(unsigned short sel)
+{
+        asm("lldt %0" : : "rm"(sel));
+}
+EXPORT_SYMBOL(rkvm_load_ldt);
+
 void cr4_update_irqsoff(unsigned long set, unsigned long clear)
 {
 	unsigned long newval, cr4 = this_cpu_read(cpu_tlbstate.cr4);

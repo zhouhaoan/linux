@@ -163,6 +163,16 @@ impl File {
         // SAFETY: The file is valid because the shared reference guarantees a nonzero refcount.
         unsafe { core::ptr::addr_of!((*self.0.get()).f_flags).read() }
     }
+
+    /// Return private_data
+    pub fn private_data(&self) -> *mut core::ffi::c_void   {
+        unsafe { core::ptr::addr_of!((*self.0.get()).private_data).read() }
+    }
+
+   /// Return Self
+   pub fn get(&self) -> *mut bindings::file {
+        self.0.get()
+   }
 }
 
 // SAFETY: The type invariants guarantee that `File` is always ref-counted.

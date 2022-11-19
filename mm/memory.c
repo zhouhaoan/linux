@@ -5851,3 +5851,54 @@ void ptlock_free(struct page *page)
 	kmem_cache_free(page_ptl_cachep, page->ptl);
 }
 #endif
+
+/*rkvm */
+unsigned long rkvm_get_current_gdt_ro(void)
+{
+        int cpu = get_cpu();
+        unsigned long ret = (unsigned long)get_cpu_gdt_ro(smp_processor_id());
+        put_cpu();
+        return ret;
+}
+EXPORT_SYMBOL_GPL(rkvm_get_current_gdt_ro);
+
+unsigned long rkvm_get_current_tss_ro(void)
+{
+       int cpu = get_cpu();
+       unsigned long ret =  &get_cpu_entry_area(smp_processor_id())->tss.x86_tss;
+       put_cpu();
+       return ret;
+}
+EXPORT_SYMBOL_GPL(rkvm_get_current_tss_ro);
+
+unsigned long rkvm_phy_address(unsigned long addr)
+{
+        return __pa(addr);
+}
+
+EXPORT_SYMBOL_GPL(rkvm_phy_address);
+
+static vm_fault_t rkvm_fault(struct vm_fault *vmf)
+{
+        unsigned long run = vmf->vma->vm_file->private_data;
+        struct page *page;
+
+        if (vmf->pgoff == 0)
+                page = virt_to_page(run);
+        else
+                return VM_FAULT_SIGBUS;
+        get_page(page);
+        vmf->page = page;
+        return 0;
+}
+
+static const struct vm_operations_struct rkvm_vm_ops = {
+        .fault = rkvm_fault,
+};
+
+unsigned long rkvm_mmap(struct file *file, struct vm_area_struct *vma)
+{
+        vma->vm_ops = &rkvm_vm_ops;
+        return 0;
+}
+EXPORT_SYMBOL_GPL(rkvm_mmap);

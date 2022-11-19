@@ -6,7 +6,7 @@
 
 use crate::{
     bindings, c_str, error::from_kernel_err_ptr, types::PointerWrapper, ARef, AlwaysRefCounted,
-    Result, ScopeGuard,
+    Result, ScopeGuard, mm::Mm
 };
 use alloc::boxed::Box;
 use core::{cell::UnsafeCell, fmt, marker::PhantomData, ops::Deref, ptr};
@@ -196,6 +196,16 @@ impl Task {
         // running.
         unsafe { bindings::wake_up_process(self.0.get()) };
     }
+
+    /// Return mm_struct
+    pub fn mm(&self) -> &Mm {
+         // SAFETY: By the type invariant, we know that `self.ptr` is non-null and valid.
+         let ptr = unsafe { core::ptr::addr_of!((*self.0.get()).mm).read() };
+         // SAFETY: The lifetimes of `self` and `Mm` are tied, so it is guaranteed that
+         // the mm_struct pointer remains valid (because the task is still alive, and it doesn't
+         // change over the lifetime of a task).
+         unsafe { Mm::from_ptr(ptr) }
+     }
 }
 
 // SAFETY: The type invariants guarantee that `Task` is always ref-counted.

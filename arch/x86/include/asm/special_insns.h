@@ -76,6 +76,15 @@ static inline unsigned long native_read_cr4(void)
 
 void native_write_cr4(unsigned long val);
 
+void rkvm_vmxoff(void);
+
+void rkvm_wrgsbase(unsigned long gs);
+void rkvm_wrfsbase(unsigned long fs);
+unsigned long rkvm_rdgsbase(void);
+
+unsigned short rkvm_read_ldt(void);
+void rkvm_load_ldt(unsigned short sel);
+
 #ifdef CONFIG_X86_INTEL_MEMORY_PROTECTION_KEYS
 static inline u32 rdpkru(void)
 {
