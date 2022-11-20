@@ -677,6 +677,7 @@ unsigned long rust_helper_phy_address(unsigned long vaddr)
 {
 	return __pa(vaddr);
 }
+EXPORT_SYMBOL_GPL(rust_helper_phy_address);
 /*
  * We use `bindgen`'s `--size_t-is-usize` option to bind the C `size_t` type
  * as the Rust `usize` type, so we can use it in contexts where Rust
