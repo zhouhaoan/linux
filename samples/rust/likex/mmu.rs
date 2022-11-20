@@ -144,7 +144,7 @@ impl RkvmMmu {
         unsafe {
             bindings::memset(ptr, 0, PAGE_SIZE as u64);
         }
-        let hpa = unsafe { bindings::rkvm_phy_address(hpa) };
+        let hpa = unsafe { bindings::phy_address(hpa) };
 
         rkvm_debug!("RkvmMmu hpa(phy) = {:x}--root_hpa \n", hpa);
 

@@ -5872,13 +5872,6 @@ unsigned long rkvm_get_current_tss_ro(void)
 }
 EXPORT_SYMBOL_GPL(rkvm_get_current_tss_ro);
 
-unsigned long rkvm_phy_address(unsigned long addr)
-{
-        return __pa(addr);
-}
-
-EXPORT_SYMBOL_GPL(rkvm_phy_address);
-
 static vm_fault_t rkvm_fault(struct vm_fault *vmf)
 {
         unsigned long run = (unsigned long)vmf->vma->vm_file->private_data;

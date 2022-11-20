@@ -672,6 +672,11 @@ unsigned long rust_helper_page_to_pfn(struct page* page)
 	return page_to_pfn(page);
 }
 EXPORT_SYMBOL_GPL(rust_helper_page_to_pfn);
+
+unsigned long rust_helper_phy_address(unsigned long vaddr)
+{
+	return __pa(vaddr);
+}
 /*
  * We use `bindgen`'s `--size_t-is-usize` option to bind the C `size_t` type
  * as the Rust `usize` type, so we can use it in contexts where Rust

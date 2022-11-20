@@ -447,7 +447,7 @@ fn make_spte(fault: &RkvmPageFault, flags: &EptMasks) -> u64 {
 
 fn make_noleaf_spte(pt: u64, flags: &EptMasks) -> u64 {
     let mut spte: u64 = 1u64 << 11; //SPTE_MMU_PRESENT_MASK
-    let pa = unsafe { bindings::rkvm_phy_address(pt) };
+    let pa = unsafe { bindings::phy_address(pt) };
 
     spte |= pa
         | flags.ept_present_mask

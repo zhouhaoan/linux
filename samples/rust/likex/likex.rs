@@ -189,7 +189,7 @@ fn rkvm_set_vmxon(state: &RkvmState) -> Result<u32> {
         return Err(ENOENT);
     }
     unsafe {
-        let pa = bindings::rkvm_phy_address(vmcs.va);
+        let pa = bindings::phy_address(vmcs.va);
 
         rkvm_debug!(" pa = {:x}\n", pa);
 
