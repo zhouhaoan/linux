@@ -5855,7 +5855,7 @@ void ptlock_free(struct page *page)
 /*rkvm */
 unsigned long rkvm_get_current_gdt_ro(void)
 {
-        int cpu = get_cpu();
+        get_cpu();
         unsigned long ret = (unsigned long)get_cpu_gdt_ro(smp_processor_id());
         put_cpu();
         return ret;
@@ -5864,8 +5864,9 @@ EXPORT_SYMBOL_GPL(rkvm_get_current_gdt_ro);
 
 unsigned long rkvm_get_current_tss_ro(void)
 {
-       int cpu = get_cpu();
-       unsigned long ret =  &get_cpu_entry_area(smp_processor_id())->tss.x86_tss;
+       get_cpu();
+       unsigned long ret =
+		(unsigned long)&get_cpu_entry_area(smp_processor_id())->tss.x86_tss;
        put_cpu();
        return ret;
 }
@@ -5880,7 +5881,7 @@ EXPORT_SYMBOL_GPL(rkvm_phy_address);
 
 static vm_fault_t rkvm_fault(struct vm_fault *vmf)
 {
-        unsigned long run = vmf->vma->vm_file->private_data;
+        unsigned long run = (unsigned long)vmf->vma->vm_file->private_data;
         struct page *page;
 
         if (vmf->pgoff == 0)

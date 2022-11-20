@@ -29,7 +29,6 @@ use crate::guest::GuestWrapper;
 use crate::vcpu::*;
 use crate::vmcs::*;
 use crate::x86reg::*;
-static mut DEBUG_ON: bool = false;
 
 module! {
     type: RustMiscdev,
@@ -98,7 +97,7 @@ impl file::Operations for KvmFile {
         Ok(shared.clone())
     }
 
-    fn mmap(this: ArcBorrow<'_, RkvmState>, _file: &file::File, _vma: &mut Area) -> Result {
+    fn mmap(_this: ArcBorrow<'_, RkvmState>, _file: &file::File, _vma: &mut Area) -> Result {
         rkvm_debug!("KVM mmap \n");
 
         unsafe {
@@ -112,12 +111,12 @@ impl file::Operations for KvmFile {
     }
 }
 
-//static mut DEBUG_ON: bool = false;
+static mut DEBUG_ON: bool = false;
 #[macro_export]
 /// debug print switch
 macro_rules! rkvm_debug (
     ($($arg:tt)*) => (
-        unsafe {
+	unsafe {
             if DEBUG_ON {
                 kernel::print_macro!(kernel::print::format_strings::DEBUG, false, $($arg)*)
             }
@@ -264,8 +263,8 @@ impl file::IoctlHandler for RkvmState {
                 let va = vcpu0.get_run();
                 unsafe {
                     //use for mmap
-                    let mut fpriv = file.private_data();
-                    fpriv = va as *mut c_void;
+                    let mut _fpriv = file.private_data();
+                    _fpriv = va as *mut c_void;
                     rkvm_debug!("Rust kvm: vcpu create : run = {:x} \n", va);
                     VCPU = Some(vcpu0);
                 }
