@@ -263,8 +263,7 @@ impl file::IoctlHandler for RkvmState {
                 let va = vcpu0.get_run();
                 unsafe {
                     //use for mmap
-                    let mut _fpriv = file.private_data();
-                    _fpriv = va as *mut c_void;
+                    file.set_private_data(va as *mut c_void);
                     rkvm_debug!("Rust kvm: vcpu create : run = {:x} \n", va);
                     VCPU = Some(vcpu0);
                 }

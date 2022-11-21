@@ -164,10 +164,10 @@ impl File {
         unsafe { core::ptr::addr_of!((*self.0.get()).f_flags).read() }
     }
 
-    /// Return private_data
-    pub fn private_data(&self) -> *mut core::ffi::c_void   {
-        unsafe { core::ptr::addr_of!((*self.0.get()).private_data).read() }
-    }
+   /// Set private_data
+   pub fn set_private_data(&self, val: *mut core::ffi::c_void) {
+        unsafe { (*self.0.get()).private_data = val; }
+   }
 
    /// Return Self
    pub fn get(&self) -> *mut bindings::file {
