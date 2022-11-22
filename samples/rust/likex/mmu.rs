@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0
 use kernel::{
     bindings,
-    linked_list::{GetLinks, Links, List},
+    //linked_list::{GetLinks, Links, List},
     pages::Pages,
     prelude::*,
+    unsafe_list::{Adapter, Links, List},
     sync::{Arc, UniqueArc},
     Result, PAGE_SIZE,
 };
@@ -120,8 +121,8 @@ impl EptMasks {
 pub(crate) struct RkvmMmu {
     pub(crate) root_hpa: u64,
     pub(crate) root_mmu_page: Arc<RkvmMmuPage>,
-    mmu_root_list: List<Arc<RkvmMmuPage>>,
-    mmu_pages_list: List<Arc<RkvmMmuPage>>,
+    mmu_root_list: List<RkvmMmuPage>,
+    mmu_pages_list: List<RkvmMmuPage>,
     pub(crate) spte_flags: Arc<EptMasks>,
 }
 
@@ -167,7 +168,10 @@ impl RkvmMmu {
             spte_flags: flags.clone(),
         })?;
 
-        mmu.mmu_root_list.push_back(root);
+        let root = Arc::from(root);
+        Arc::into_raw(root.clone());
+
+        unsafe { mmu.mmu_root_list.push_back(&*root)};
         Ok(mmu)
     }
     pub(crate) fn alloc_mmu_page(&mut self, level: u64, gfn: u64) -> Result<Arc<RkvmMmuPage>> {
@@ -185,9 +189,10 @@ impl RkvmMmu {
         unsafe {
             bindings::memset(ptr, 0, PAGE_SIZE as u64);
         }
-        let ret = mmu_page.clone();
-        self.mmu_pages_list.push_back(mmu_page);
-        Ok(ret)
+
+        Arc::into_raw(mmu_page.clone());
+        unsafe { self.mmu_pages_list.push_back(&*mmu_page)};
+        Ok(mmu_page)
     }
 
     pub(crate) fn make_eptp(&mut self) -> u64 {
@@ -216,12 +221,19 @@ impl RkvmMmu {
 
 #[allow(dead_code)]
 pub(crate) struct RkvmMmuPage {
+    pub(crate) links: Links<RkvmMmuPage>,
     pub(crate) gfn: Option<u64>,
     pub(crate) pages: Pages<0>,
     pub(crate) root: bool,
     pub(crate) spt: Option<u64>, //mmu page's vaddr
     pub(crate) level: u64,
-    pub(crate) page_links: Links<RkvmMmuPage>,
+}
+
+unsafe impl Adapter for RkvmMmuPage {
+    type EntryType = Self;
+    fn to_links(obj: &Self) -> &Links<Self> {
+       &obj.links
+    }
 }
 
 impl RkvmMmuPage {
@@ -239,16 +251,10 @@ impl RkvmMmuPage {
             root: isroot,
             spt: spt,
             level: level,
-            page_links: Links::new(),
+            links: Links::new(),
         })?;
 
         Ok(mmu_page)
     }
 }
 
-impl GetLinks for RkvmMmuPage {
-    type EntryType = RkvmMmuPage;
-    fn get_links(data: &RkvmMmuPage) -> &Links<RkvmMmuPage> {
-        &data.page_links
-    }
-}
