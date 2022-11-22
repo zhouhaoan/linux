@@ -349,7 +349,12 @@ macro_rules! RKVM_PAGES_PER_HPAGE {
 }
 fn rkvm_pagefault(vcpu: &VcpuWrapper, fault: &mut RkvmPageFault) -> Result {
     let vcpuinner = vcpu.vcpuinner.lock();
-    let slot = &vcpuinner.guest.guestinner.lock().memslot;
+    let slot = vcpuinner.guest.find_slot(fault.gfn);
+    let slot = match slot {
+        Ok(slot) => slot,
+        Err(err) => return Err(err),
+    };
+
     let uaddr = slot.userspace_addr;
     let base_gfn = slot.base_gfn;
     if fault.gfn < base_gfn {

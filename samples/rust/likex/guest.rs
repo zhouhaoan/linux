@@ -2,30 +2,33 @@
 use kernel::prelude::*;
 use kernel::task::Task;
 use kernel::{bindings, mutex_init, Result};
+use kernel::unsafe_list::{Adapter, Links, List};
 use crate::{rkvm_debug, DEBUG_ON};
 use kernel::sync::{Mutex, Arc, UniqueArc};
-#[derive(Copy, Clone)]
+use kernel::PAGE_SIZE;
+//#[derive(Copy, Clone)]
 #[allow(dead_code)]
 pub(crate) struct RkvmMemorySlot {
-    //pub(crate) gfn_node: RBTreeNode,
+    pub(crate) links: Links<RkvmMemorySlot>,
     pub(crate) base_gfn: u64,
     pub(crate) npages: u64,
     pub(crate) userspace_addr: u64,
     pub(crate) slot_id: u16,
 }
-/*
-pub(crate) struct Rkvm_memslots {
-    pub(crate) gfn_tree: RBTree<u64,u64>,
-    pub(crate) node_index: u64,
+
+unsafe impl Adapter for RkvmMemorySlot {
+    type EntryType = Self;
+    fn to_links(obj: &Self) -> &Links<Self> {
+       &obj.links
+    }
 }
-*/
+
 
 #[allow(dead_code)]
 pub(crate) struct Guest {
     pub(crate) mm: *const bindings::mm_struct,
-    pub(crate) memslot: RkvmMemorySlot,
-    pub(crate) nr_slot_pages: u64,
-    //pub(crate) mmu: Rkvm_mmu,
+    pub(crate) slots_list: List<RkvmMemorySlot>,
+    pub(crate) num_slots: u64,
 }
 
 pub(crate) struct GuestWrapper {
@@ -39,36 +42,42 @@ impl GuestWrapper {
                     Task::current().mm().get()
                   };
 
-        let mut g = Pin::from(UniqueArc::try_new(Self {
+        let mut guest = Pin::from(UniqueArc::try_new(Self {
             guestinner: unsafe {
                 Mutex::new(Guest {
                     mm: mm_,
-                    memslot: RkvmMemorySlot {
-                        base_gfn: 0,
-                        npages: 0,
-                        userspace_addr: 0,
-                        slot_id: 0,
-                    },
-                    nr_slot_pages: 0,
+                    slots_list: List::<RkvmMemorySlot>::new(),
+                    num_slots: 0,
                 })
             },
         })?);
-        let pinned = unsafe { g.as_mut().map_unchecked_mut(|s| &mut s.guestinner) };
+        let pinned = unsafe { guest.as_mut().map_unchecked_mut(|s| &mut s.guestinner) };
         mutex_init!(pinned, "GuestWrapper::guestinner");
 
-        Ok(g.into())
+        Ok(guest.into())
     }
 
     pub(crate) fn add_memory_region(&self, slot: u16, uaddr: u64, npages: u64, gpa: u64) -> Result<i32> {
         if gpa & (kernel::PAGE_SIZE - 1) as u64 != 0 {
             return Err(ENOMEM);
         }
-        let mut guestinner = self.guestinner.lock();
-	guestinner.memslot.slot_id = slot;
-        guestinner.memslot.userspace_addr = uaddr;
-        guestinner.memslot.base_gfn = gpa >> 12;
-        guestinner.memslot.npages = npages;
+        let newslot = UniqueArc::try_new(RkvmMemorySlot {
+                           links: Links::new(),
+                           base_gfn: gpa >> 12,
+                           npages: npages,
+                           userspace_addr: uaddr,
+                           slot_id: slot,
+                      })?;
+        let newslot = Arc::from(newslot);
 
+        // TODO: Dealing with slot overlap issues
+        let mut guestinner = self.guestinner.lock();
+
+        // Add one reference into a pointer to hold on to a ref count while the
+        // slot is in the list.
+        Arc::into_raw(newslot.clone());
+        unsafe { guestinner.slots_list.push_back(&*newslot) };
+        guestinner.num_slots += 1;
         rkvm_debug!(
             " add_memory_region slot= {},uaddr={:x}, gpa = {:x}, npages={:x} \n",
 	    slot,
@@ -79,6 +88,17 @@ impl GuestWrapper {
 
         Ok(0)
     }
+
+    pub(crate) fn find_slot(&self, gfn: u64) -> Result<Arc<RkvmMemorySlot>> {
+       let guestinner = self.guestinner.lock();
+       for (i, e) in guestinner.slots_list.iter().enumerate() {
+           if (gfn >= e.base_gfn) && (gfn <= e.base_gfn + PAGE_SIZE as u64 * e.npages) {
+              let slot = unsafe { Arc::<RkvmMemorySlot>::from_raw(e) };
+              return Ok(slot);
+           }
+       }
+       Err(EINVAL)
+   }
 }
 
 impl Drop for GuestWrapper {
