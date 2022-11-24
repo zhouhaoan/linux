@@ -125,6 +125,11 @@ impl<const ORDER: u32> Pages<ORDER> {
    pub fn get(&self) -> *mut bindings::page {
       self.pages
    }
+
+   /// Set page private
+   pub fn set_page_private(&self, val: u64) {
+      unsafe { (*self.pages).__bindgen_anon_1.__bindgen_anon_1.private = val; }
+   }
 }
 
 impl<const ORDER: u32> Drop for Pages<ORDER> {
