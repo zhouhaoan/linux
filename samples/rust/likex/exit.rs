@@ -6,7 +6,7 @@ use crate::{rkvm_debug, DEBUG_ON};
 use core::arch::asm;
 use core::mem::MaybeUninit;
 use kernel::prelude::*;
-use kernel::{bindings, bit, sync::Arc, Result, PAGE_SIZE};
+use kernel::{bindings, bit, sync::{Arc, ArcBorrow}, Result, PAGE_SIZE};
 
 #[repr(u32)]
 #[derive(Debug, Copy, Clone)]
@@ -380,7 +380,7 @@ fn rkvm_pagefault(vcpu: &VcpuWrapper, fault: &mut RkvmPageFault) -> Result {
     Ok(())
 }
 
-fn rkvm_read_spte(mmu_page: Arc<RkvmMmuPage>, gfn: u64, level: u64) -> Result<u64> {
+fn rkvm_read_spte(mmu_page: ArcBorrow<'_, RkvmMmuPage>, gfn: u64, level: u64) -> Result<u64> {
     if level < 1 {
         pr_err!(" rkvm_read_spte level={:?} < 1 \n", level);
         return Err(EINVAL);
@@ -476,7 +476,7 @@ fn rkvm_tdp_map(vcpu: &VcpuWrapper, fault: &mut RkvmPageFault) -> Result {
     let level_gfn = make_level_gfn(fault.gfn, level)?;
     let mut pre_mmu_page = vcpuinner.mmu.root_mmu_page.clone();
     let flags = vcpuinner.mmu.spte_flags.clone();
-    let mut spte = rkvm_read_spte(pre_mmu_page.clone(), level_gfn, level)?;
+    let mut spte = rkvm_read_spte(pre_mmu_page.as_arc_borrow(), level_gfn, level)?;
     while level > 0 {
         if level == fault.goal_level {
             break;
@@ -501,7 +501,7 @@ fn rkvm_tdp_map(vcpu: &VcpuWrapper, fault: &mut RkvmPageFault) -> Result {
         }
         level -= 1;
         let level_gfn = make_level_gfn(fault.gfn, level)?;
-        spte = rkvm_read_spte(pre_mmu_page.clone(), level_gfn, level)?;
+        spte = rkvm_read_spte(pre_mmu_page.as_arc_borrow(), level_gfn, level)?;
     } //while
       // handle leaf pte
 
