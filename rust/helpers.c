@@ -673,6 +673,12 @@ unsigned long rust_helper_page_to_pfn(struct page* page)
 }
 EXPORT_SYMBOL_GPL(rust_helper_page_to_pfn);
 
+struct page* rust_helper_pfn_to_page(unsigned long pfn)
+{
+        return pfn_to_page(pfn);
+}
+EXPORT_SYMBOL_GPL(rust_helper_pfn_to_page);
+
 unsigned long rust_helper_phy_address(unsigned long vaddr)
 {
 	return __pa(vaddr);

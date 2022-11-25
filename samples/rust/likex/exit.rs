@@ -331,6 +331,7 @@ macro_rules! LEVEL_SHIFT {
     };
 }
 
+// get the pte offset in mmu page
 macro_rules! SHADOW_PT_INDEX {
     ($addr:expr, $level:expr) => {
         (($addr) >> LEVEL_SHIFT!($level) & ((1 << LEVELBITS) - 1))
