@@ -130,6 +130,11 @@ impl<const ORDER: u32> Pages<ORDER> {
    pub fn set_page_private(&self, val: u64) {
       unsafe { (*self.pages).__bindgen_anon_1.__bindgen_anon_1.private = val; }
    }
+
+   /// Get page private
+   pub fn get_page_private(&self) -> u64 {
+      unsafe { (*self.pages).__bindgen_anon_1.__bindgen_anon_1.private }
+   }
 }
 
 impl<const ORDER: u32> Drop for Pages<ORDER> {
