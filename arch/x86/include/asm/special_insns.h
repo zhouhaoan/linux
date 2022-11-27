@@ -76,7 +76,6 @@ static inline unsigned long native_read_cr4(void)
 
 void native_write_cr4(unsigned long val);
 
-void rkvm_vmxoff(void);
 unsigned long rkvm_rdgsbase(void);
 
 #ifdef CONFIG_X86_INTEL_MEMORY_PROTECTION_KEYS

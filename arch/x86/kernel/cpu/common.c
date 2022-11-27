@@ -459,16 +459,6 @@ set_register:
 EXPORT_SYMBOL_GPL(native_write_cr4);
 #endif
 
-void rkvm_vmxoff()
-{
-        unsigned long cr4;
-        asm volatile ("vmxoff");
-        cr4 = native_read_cr4();
-        cr4 &= ~X86_CR4_VMXE;
-        native_write_cr4(cr4);
-}
-EXPORT_SYMBOL(rkvm_vmxoff);
-
 unsigned long rkvm_rdgsbase(void)
 {
         int cpu;

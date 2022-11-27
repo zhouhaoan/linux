@@ -172,6 +172,19 @@ fn rkvm_vmxon(addr: u64) {
     }
 }
 
+fn rkvm_vmxoff() {
+   let mut cr4: u64 = read_cr4();
+   cr4 &= !Cr4::CR4_ENABLE_VMX as u64;
+   unsafe {
+        asm!(
+            "vmxoff",
+            options(att_syntax)
+        );
+   }
+   write_cr4(cr4);
+   rkvm_debug!("vmxoff\n");
+}
+
 fn rkvm_set_vmxon(state: &RkvmState) -> Result<u32> {
     let revision_id = state.inner.lock().vmcsconf.revision_id;
     let vmcs = alloc_vmcs(revision_id);
