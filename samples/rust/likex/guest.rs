@@ -14,6 +14,7 @@ pub(crate) struct RkvmMemorySlot {
     pub(crate) npages: u64,
     pub(crate) userspace_addr: u64,
     pub(crate) slot_id: u16,
+    pub(crate) flags: u32,
 }
 
 unsafe impl Adapter for RkvmMemorySlot {
@@ -57,7 +58,7 @@ impl GuestWrapper {
         Ok(guest.into())
     }
 
-    pub(crate) fn add_memory_region(&self, slot: u16, uaddr: u64, npages: u64, gpa: u64) -> Result<i32> {
+    pub(crate) fn add_memory_region(&self, slot: u16, uaddr: u64, npages: u64, gpa: u64, flags: u32) -> Result<i32> {
         if gpa & (kernel::PAGE_SIZE - 1) as u64 != 0 {
             return Err(ENOMEM);
         }
@@ -67,6 +68,7 @@ impl GuestWrapper {
                            npages: npages,
                            userspace_addr: uaddr,
                            slot_id: slot,
+                           flags: flags,
                       })?;
         let newslot = Arc::from(newslot);
 
@@ -79,11 +81,12 @@ impl GuestWrapper {
         unsafe { guestinner.slots_list.push_back(&*newslot) };
         guestinner.num_slots += 1;
         rkvm_debug!(
-            " add_memory_region slot= {},uaddr={:x}, gpa = {:x}, npages={:x} \n",
+            " add_memory_region slot= {},uaddr={:x}, gpa = {:x}, npages={:x}, flags={:x} \n",
 	    slot,
             uaddr,
             gpa,
-            npages
+            npages,
+            flags,
         );
 
         Ok(0)

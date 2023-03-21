@@ -8,6 +8,7 @@ use core::mem::MaybeUninit;
 use kernel::prelude::*;
 use kernel::{bindings, bit, sync::{Arc, ArcBorrow}, Result, PAGE_SIZE};
 
+use crate::mmu::RkvmMemFlag;
 #[repr(u32)]
 #[derive(Debug, Copy, Clone)]
 #[allow(dead_code)]
@@ -348,7 +349,7 @@ macro_rules! RKVM_PAGES_PER_HPAGE {
         ((1 << ((($level) - 1) * 9 + bindings::PAGE_SHIFT as u64)) / PAGE_SIZE)
     };
 }
-fn rkvm_pagefault(vcpu: &VcpuWrapper, fault: &mut RkvmPageFault) -> Result {
+fn rkvm_pagefault(vcpu: &VcpuWrapper, fault: &mut RkvmPageFault) -> Result<u32> {
     let vcpuinner = vcpu.vcpuinner.lock();
     let slot = vcpuinner.guest.find_slot(fault.gfn);
     let slot = match slot {
@@ -356,6 +357,9 @@ fn rkvm_pagefault(vcpu: &VcpuWrapper, fault: &mut RkvmPageFault) -> Result {
         Err(err) => return Err(err),
     };
 
+    if slot.flags & (RkvmMemFlag::RkvmMemMmio as u32) != 0 {
+         return Ok(1);
+    }
     let uaddr = slot.userspace_addr;
     let base_gfn = slot.base_gfn;
     if fault.gfn < base_gfn {
@@ -378,7 +382,7 @@ fn rkvm_pagefault(vcpu: &VcpuWrapper, fault: &mut RkvmPageFault) -> Result {
 
     rkvm_debug!("pagefault: pfn={:?} \n", fault.pfn);
 
-    Ok(())
+    Ok(0)
 }
 
 fn rkvm_read_spte(mmu_page: ArcBorrow<'_, RkvmMmuPage>, gfn: u64, level: u64) -> Result<u64> {
@@ -563,7 +567,15 @@ pub(crate) fn handle_ept_violation(exit_info: &ExitInfo, vcpu: &VcpuWrapper) -> 
 
     let ret = rkvm_pagefault(vcpu, &mut fault);
     match ret {
-        Ok(r) => r,
+        Ok(r) =>  {
+           if r > 0 { // hit mmio region
+              let vcpuinner = vcpu.vcpuinner.lock();
+              unsafe {
+                 (*(vcpuinner.run.as_mut_ptr::<RkvmRun>())).exit_reason = RkvmUserExitReason::RKVM_EXIT_MMIO as u32;
+              }
+              return Ok(0);
+           }
+        }
         Err(e) => return Err(e),
     };
     //map

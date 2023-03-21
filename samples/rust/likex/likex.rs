@@ -408,6 +408,7 @@ impl file::IoctlHandler for RkvmState {
                     uaddr_.userspace_addr,
                     uaddr_.memory_size >> 12,
                     uaddr_.guest_phys_addr,
+                    uaddr_.flags,
                 );
                 ret
             }

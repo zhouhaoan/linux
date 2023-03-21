@@ -14,6 +14,12 @@ use crate::vmcs::*;
 use crate::x86reg::*;
 use crate::{rkvm_debug, DEBUG_ON};
 
+#[repr(u32)]
+pub(crate) enum RkvmMemFlag {
+    RkvmMemMmio = (1 << 30), /* mmio */
+    RkvmMemNorm = (1 << 29), /* normal mem */
+}
+
 #[repr(u64)]
 #[derive(Debug)]
 #[allow(dead_code)]
