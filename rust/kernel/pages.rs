@@ -23,6 +23,10 @@ pub struct Pages<const ORDER: u32> {
 }
 
 impl<const ORDER: u32> Pages<ORDER> {
+    /// get Page
+    pub fn get_page(pages: *mut bindings::page) ->Result<Self> {
+        Ok(Self { pages })
+    }
     /// Allocates a new set of contiguous pages.
     pub fn new() -> Result<Self> {
         // TODO: Consider whether we want to allow callers to specify flags.

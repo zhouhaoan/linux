@@ -7,8 +7,9 @@ use core::arch::asm;
 use core::mem::MaybeUninit;
 use kernel::prelude::*;
 use kernel::{bindings, bit, sync::{Arc, ArcBorrow}, Result, PAGE_SIZE};
-
+use kernel::pages::Pages;
 use crate::mmu::RkvmMemFlag;
+
 #[repr(u32)]
 #[derive(Debug, Copy, Clone)]
 #[allow(dead_code)]
@@ -526,10 +527,49 @@ fn rkvm_tdp_map(vcpu: &VcpuWrapper, fault: &mut RkvmPageFault) -> Result {
     Ok(())
 }
 
+// get instruction page
+fn get_inst_info(guest_rip: u64, cs_gpa: u64, inst_len: u32, vcpu: &VcpuWrapper) -> Result {
+    let vcpuinner = vcpu.vcpuinner.lock();
+    let gfn = guest_rip >> 12;
+    let slot = vcpuinner.guest.find_slot(gfn);
+    let slot = match slot {
+        Ok(slot) => slot,
+        Err(err) => return Err(err),
+    };
+
+    if slot.flags & (RkvmMemFlag::RkvmMemMmio as u32) != 0 {
+         return Ok(());
+    }
+    let uaddr = slot.userspace_addr;
+    let base_gfn = slot.base_gfn;
+    if gfn < base_gfn {
+        return Err(EINVAL);
+    }
+//  let hva = uaddr + (gfn - base_gfn) * kernel::PAGE_SIZE as u64;
+    let mut nrpages: i64 = 0;
+    let flags: u32 = bindings::FOLL_HWPOISON | bindings::FOLL_NOWAIT;
+    let offset: u64 = guest_rip & ((1u64 << 12) - 1);
+    let mut pages = MaybeUninit::<*mut bindings::page>::uninit();
+    unsafe {
+        nrpages = bindings::get_user_pages_unlocked(uaddr, 1, pages.as_mut_ptr(), flags);
+        if nrpages != 1 {
+            return Err(ENOMEM);
+        }
+        let page = *pages.as_mut_ptr() as *mut bindings::page;
+        let rpage = Pages::<0>::get_page(page).unwrap();
+        let mut ptr = (*(vcpuinner.run.as_mut_ptr::<RkvmRun>())).inst_buf.as_mut_ptr() as *mut u8;
+        rpage.read(ptr, offset.try_into().unwrap(), inst_len.try_into().unwrap());
+        (*(vcpuinner.run.as_mut_ptr::<RkvmRun>())).exit_reason = RkvmUserExitReason::RKVM_EXIT_MMIO as u32;
+        (*(vcpuinner.run.as_mut_ptr::<RkvmRun>())).inst_len = inst_len as u16;
+    }
+   Ok(())
+}
+
 pub(crate) fn handle_ept_violation(exit_info: &ExitInfo, vcpu: &VcpuWrapper) -> Result<u64> {
     rkvm_debug!("Enter handle EPT violation\n");
 
     let mut error_code: u64 = 0;
+    let inst_len = exit_info.exit_instruction_length & 255;
     let gpa = vmcs_read64(VmcsField::GUEST_PHYSICAL_ADDRESS);
     if (exit_info.exit_qualification & EptViolationMask::EPT_VIOLATION_ACC_READ as u64) != 0 {
         error_code = PferrMask::PFERR_USER_MASK as u64;
@@ -569,10 +609,9 @@ pub(crate) fn handle_ept_violation(exit_info: &ExitInfo, vcpu: &VcpuWrapper) -> 
     match ret {
         Ok(r) =>  {
            if r > 0 { // hit mmio region
-              let vcpuinner = vcpu.vcpuinner.lock();
-              unsafe {
-                 (*(vcpuinner.run.as_mut_ptr::<RkvmRun>())).exit_reason = RkvmUserExitReason::RKVM_EXIT_MMIO as u32;
-              }
+              let cs = vmcs_read64(VmcsField::GUEST_CR3);
+              let guest_rip = vmcs_read64(VmcsField::GUEST_RIP);
+              get_inst_info(guest_rip, cs, inst_len, vcpu);
               return Ok(0);
            }
         }
