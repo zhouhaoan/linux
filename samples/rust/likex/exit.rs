@@ -528,7 +528,7 @@ fn rkvm_tdp_map(vcpu: &VcpuWrapper, fault: &mut RkvmPageFault) -> Result {
 }
 
 // get instruction page
-fn get_inst_info(guest_rip: u64, cs_gpa: u64, inst_len: u32, vcpu: &VcpuWrapper) -> Result {
+fn get_inst_info(guest_rip: u64, gpa: u64, inst_len: u32, vcpu: &VcpuWrapper) -> Result {
     let vcpuinner = vcpu.vcpuinner.lock();
     let gfn = guest_rip >> 12;
     let slot = vcpuinner.guest.find_slot(gfn);
@@ -557,10 +557,11 @@ fn get_inst_info(guest_rip: u64, cs_gpa: u64, inst_len: u32, vcpu: &VcpuWrapper)
         }
         let page = *pages.as_mut_ptr() as *mut bindings::page;
         let rpage = Pages::<0>::get_page(page).unwrap();
-        let mut ptr = (*(vcpuinner.run.as_mut_ptr::<RkvmRun>())).inst_buf.as_mut_ptr() as *mut u8;
+        let mut ptr = (*(vcpuinner.run.as_mut_ptr::<RkvmRun>())).mmio.inst_buf.as_mut_ptr() as *mut u8;
         rpage.read(ptr, offset.try_into().unwrap(), inst_len.try_into().unwrap());
         (*(vcpuinner.run.as_mut_ptr::<RkvmRun>())).exit_reason = RkvmUserExitReason::RKVM_EXIT_MMIO as u32;
-        (*(vcpuinner.run.as_mut_ptr::<RkvmRun>())).inst_len = inst_len as u16;
+        (*(vcpuinner.run.as_mut_ptr::<RkvmRun>())).mmio.inst_len = inst_len as u16;
+        (*(vcpuinner.run.as_mut_ptr::<RkvmRun>())).mmio.gpa = gpa;
     }
    Ok(())
 }
@@ -609,9 +610,9 @@ pub(crate) fn handle_ept_violation(exit_info: &ExitInfo, vcpu: &VcpuWrapper) -> 
     match ret {
         Ok(r) =>  {
            if r > 0 { // hit mmio region
-              let cs = vmcs_read64(VmcsField::GUEST_CR3);
+              // let cs = vmcs_read64(VmcsField::GUEST_CR3);
               let guest_rip = vmcs_read64(VmcsField::GUEST_RIP);
-              get_inst_info(guest_rip, cs, inst_len, vcpu);
+              get_inst_info(guest_rip, gpa, inst_len, vcpu);
               return Ok(0);
            }
         }

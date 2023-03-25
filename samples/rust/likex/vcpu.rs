@@ -142,6 +142,13 @@ pub(crate) struct Pio {
 }
 
 #[repr(C)]
+pub(crate) struct Mmio {
+   pub(crate) gpa: u64,
+   pub(crate) inst_len: u16,
+   pub(crate) inst_buf:[u8;15],
+}
+
+#[repr(C)]
 #[allow(dead_code)]
 pub(crate) struct RkvmRun {
     /* in */
@@ -154,8 +161,7 @@ pub(crate) struct RkvmRun {
     pub(crate) cr8: u64,
     pub(crate) apic_base: u64,
     pub(crate) io: Pio,
-    pub(crate) inst_len: u16,
-    pub(crate) inst_buf:[u8;15],
+    pub(crate) mmio: Mmio,
 }
 
 #[repr(C)]
