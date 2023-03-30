@@ -24,6 +24,7 @@ mod vcpu;
 mod vmcs;
 mod vmstat;
 mod x86reg;
+mod lib;
 
 use crate::guest::GuestWrapper;
 use crate::vcpu::*;
